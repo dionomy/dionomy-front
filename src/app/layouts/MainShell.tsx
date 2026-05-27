@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { RoleSwitcher } from '../../features/auth/ui/RoleSwitcher';
 
 const navigation = [
   '대시보드',
@@ -15,6 +16,7 @@ export function MainShell({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">Dionomy</div>
+        <RoleSwitcher />
         <nav className="nav-list">
           {navigation.map((item) => (
             <button className="nav-item" key={item} type="button">
