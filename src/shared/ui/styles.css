@@ -431,6 +431,11 @@ button {
   min-height: 490px;
 }
 
+.dashboard-side-stack {
+  display: grid;
+  gap: 16px;
+}
+
 .panel {
   border-radius: 12px;
   padding: 20px;
@@ -1282,6 +1287,61 @@ button {
   color: var(--color-text-primary);
   padding: 0 12px;
   font-size: 12px;
+  font-weight: 800;
+}
+
+.risk-list,
+.care-record-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.risk-list article,
+.care-record-list article {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  padding: 10px 12px;
+}
+
+.risk-list strong,
+.risk-list span,
+.care-record-list strong,
+.care-record-list span {
+  display: block;
+}
+
+.risk-list span,
+.care-record-list span {
+  margin-top: 3px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.care-record-form {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.care-record-form select,
+.care-record-form input {
+  min-width: 0;
+  height: 40px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  padding: 0 12px;
+}
+
+.care-record-form button {
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-solid-brand);
+  color: white;
+  padding: 0 12px;
   font-weight: 800;
 }
 

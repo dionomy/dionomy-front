@@ -11,6 +11,7 @@ import {
   useStudentPasses,
   type PassUsageType,
 } from '../../features/pass/api/passApi';
+import { useCareRecords, useCreateCareRecord, useRiskStudents, type CareRecordStatus } from '../../features/crm/api/crmApi';
 
 export function OwnerStudentsPage() {
   const studentsQuery = useStudents();
@@ -24,6 +25,10 @@ export function OwnerStudentsPage() {
   const activeStudentPass = studentPassesQuery.data?.[0];
   const usageLogsQuery = usePassUsageLogs(activeStudentPass?.id);
   const recordPassUsage = useRecordPassUsage(selectedStudent?.id, activeStudentPass?.id);
+  const riskStudentsQuery = useRiskStudents();
+  const careRecordsQuery = useCareRecords(selectedStudent?.id);
+  const createCareRecord = useCreateCareRecord(selectedStudent?.id);
+  const selectedRisk = riskStudentsQuery.data?.find((risk) => risk.studentId === selectedStudent?.id);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isProductOpen, setIsProductOpen] = useState(false);
   const [studentForm, setStudentForm] = useState({
@@ -40,6 +45,10 @@ export function OwnerStudentsPage() {
   });
   const [selectedProductId, setSelectedProductId] = useState('');
   const [usageReason, setUsageReason] = useState('');
+  const [careForm, setCareForm] = useState({
+    memo: '',
+    status: 'PENDING' as CareRecordStatus,
+  });
 
   const handleRegisterStudent = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -99,6 +108,25 @@ export function OwnerStudentsPage() {
         reason: usageReason || (type === 'CONSUME' ? '수동 차감' : '수동 복구'),
       },
     });
+  };
+
+  const handleCreateCareRecord = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedStudent) {
+      return;
+    }
+
+    createCareRecord.mutate(
+      {
+        studentId: selectedStudent.id,
+        memo: careForm.memo,
+        status: careForm.status,
+      },
+      {
+        onSuccess: () => setCareForm({ memo: '', status: 'PENDING' }),
+      },
+    );
   };
 
   return (
@@ -294,6 +322,10 @@ export function OwnerStudentsPage() {
               </div>
               <dl className="detail-list">
                 <div>
+                  <dt>위험 신호</dt>
+                  <dd>{selectedRisk ? selectedRisk.signals.map((signal) => signal.label).join(', ') : '없음'}</dd>
+                </div>
+                <div>
                   <dt>최근 수업</dt>
                   <dd>일정 배정 API 연동 예정</dd>
                 </div>
@@ -302,6 +334,30 @@ export function OwnerStudentsPage() {
                   <dd>{selectedStudent?.memo ?? '메모 없음'}</dd>
                 </div>
               </dl>
+              <form className="care-record-form" onSubmit={handleCreateCareRecord}>
+                <select value={careForm.status} onChange={(event) => setCareForm({ ...careForm, status: event.target.value as CareRecordStatus })}>
+                  <option value="PENDING">대기</option>
+                  <option value="CONTACTED">연락함</option>
+                  <option value="RENEWED">재등록</option>
+                  <option value="DROPPED">포기</option>
+                </select>
+                <input
+                  required
+                  placeholder="케어 기록"
+                  value={careForm.memo}
+                  onChange={(event) => setCareForm({ ...careForm, memo: event.target.value })}
+                  disabled={!selectedStudent}
+                />
+                <button type="submit" disabled={!selectedStudent || createCareRecord.isPending}>저장</button>
+              </form>
+              <div className="care-record-list">
+                {careRecordsQuery.data?.map((record) => (
+                  <article key={record.id}>
+                    <strong>{formatCareStatus(record.status)}</strong>
+                    <span>{record.memo}</span>
+                  </article>
+                ))}
+              </div>
             </div>
           </section>
 
@@ -376,6 +432,13 @@ export function OwnerStudentsPage() {
       </section>
     </section>
   );
+}
+
+function formatCareStatus(status: CareRecordStatus) {
+  if (status === 'CONTACTED') return '연락함';
+  if (status === 'RENEWED') return '재등록';
+  if (status === 'DROPPED') return '포기';
+  return '대기';
 }
 
 function formatDate(value: string) {

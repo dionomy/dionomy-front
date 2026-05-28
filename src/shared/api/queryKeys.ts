@@ -8,5 +8,7 @@ export const queryKeys = {
   attendance: (sessionId: string | undefined) => ['attendance', sessionId] as const,
   absenceRequests: (studentId?: string) => ['absence-requests', studentId ?? 'all'] as const,
   classNotes: (sessionId?: string) => ['class-notes', sessionId ?? 'all'] as const,
+  riskStudents: ['risk-students'] as const,
+  careRecords: (studentId?: string) => ['care-records', studentId ?? 'none'] as const,
   notices: ['notices'] as const,
 };
