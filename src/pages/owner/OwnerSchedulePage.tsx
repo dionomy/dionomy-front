@@ -63,6 +63,8 @@ export function OwnerSchedulePage() {
     startsAt: '2026-05-28T18:00',
     endsAt: '2026-05-28T19:00',
     maximumCapacity: 8,
+    repeatsWeekly: false,
+    recurrenceUntil: '2026-06-30',
   });
   const [moveForm, setMoveForm] = useState({
     startsAt: '2026-05-28T18:00',
@@ -82,7 +84,13 @@ export function OwnerSchedulePage() {
         currentCapacity: 0,
         maximumCapacity: scheduleForm.maximumCapacity,
         assignedStudentIds: [],
-        recurrence: null,
+        recurrence: scheduleForm.repeatsWeekly
+          ? {
+              frequency: 'WEEKLY',
+              daysOfWeek: [toDayOfWeek(scheduleForm.startsAt)],
+              until: scheduleForm.recurrenceUntil,
+            }
+          : null,
       },
       {
         onSuccess: () => {
@@ -92,6 +100,8 @@ export function OwnerSchedulePage() {
             startsAt: '2026-05-28T18:00',
             endsAt: '2026-05-28T19:00',
             maximumCapacity: 8,
+            repeatsWeekly: false,
+            recurrenceUntil: '2026-06-30',
           });
           setIsCreateOpen(false);
         },
@@ -206,6 +216,26 @@ export function OwnerSchedulePage() {
                 onChange={(event) => setScheduleForm({ ...scheduleForm, maximumCapacity: Number(event.target.value) })}
               />
             </label>
+            <label>
+              반복
+              <select
+                value={scheduleForm.repeatsWeekly ? 'WEEKLY' : 'NONE'}
+                onChange={(event) => setScheduleForm({ ...scheduleForm, repeatsWeekly: event.target.value === 'WEEKLY' })}
+              >
+                <option value="NONE">없음</option>
+                <option value="WEEKLY">매주</option>
+              </select>
+            </label>
+            {scheduleForm.repeatsWeekly && (
+              <label>
+                반복 종료
+                <input
+                  type="date"
+                  value={scheduleForm.recurrenceUntil}
+                  onChange={(event) => setScheduleForm({ ...scheduleForm, recurrenceUntil: event.target.value })}
+                />
+              </label>
+            )}
           </div>
           {createSchedule.isError && <ErrorState message="수업 등록에 실패했습니다." />}
           <div className="form-actions">
@@ -382,6 +412,11 @@ function formatHour(hour: number) {
 
 function toDatetimeLocal(value: string) {
   return value.slice(0, 16);
+}
+
+function toDayOfWeek(value: string) {
+  const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+  return days[new Date(value).getDay()];
 }
 
 function formatTimeRangeFromIso(startsAt: string, endsAt: string) {

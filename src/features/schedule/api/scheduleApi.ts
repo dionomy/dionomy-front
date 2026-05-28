@@ -33,7 +33,11 @@ export type CreateClassSessionRequest = {
   currentCapacity: number;
   maximumCapacity: number;
   assignedStudentIds: string[];
-  recurrence: null;
+  recurrence: {
+    frequency: 'WEEKLY';
+    daysOfWeek: string[];
+    until: string;
+  } | null;
 };
 
 export type AssignStudentsRequest = {
