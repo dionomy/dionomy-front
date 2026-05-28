@@ -12,5 +12,6 @@ export const queryKeys = {
   careRecords: (studentId?: string) => ['care-records', studentId ?? 'none'] as const,
   demoRequests: ['demo-requests'] as const,
   csTickets: ['cs-tickets'] as const,
+  tenantSetups: ['tenant-setups'] as const,
   notices: ['notices'] as const,
 };

@@ -2,17 +2,14 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { EmptyState, ErrorState, LoadingState } from '../../shared/ui/AsyncState';
 import { useCreateCsTicket, useCreateDemoRequest, useCsTickets, useDemoRequests } from '../../features/company/api/companyApi';
+import { useTenantSetups, useUpdateTenantSetupStatus } from '../../features/tenant-onboarding/api/tenantSetupApi';
 import { TenantOnboardingPanel } from '../../features/tenant-onboarding/ui/TenantOnboardingPanel';
-
-const tenants = [
-  { name: '숭실 코딩학원', status: '활성', build: '완료', lastActive: '오늘 09:20' },
-  { name: '리듬 보컬 스튜디오', status: '활성', build: '빌드중', lastActive: '어제 22:10' },
-  { name: '모던 드로잉 클래스', status: '정지', build: '실패', lastActive: '5월 21일' },
-] as const;
 
 export function AdminHomePage() {
   const demoRequestsQuery = useDemoRequests();
   const csTicketsQuery = useCsTickets();
+  const tenantSetupsQuery = useTenantSetups();
+  const updateTenantSetupStatus = useUpdateTenantSetupStatus();
   const createDemoRequest = useCreateDemoRequest();
   const createCsTicket = useCreateCsTicket();
   const [demoForm, setDemoForm] = useState({
@@ -92,6 +89,24 @@ export function AdminHomePage() {
                 <span>{request.businessType || '업종 미입력'}</span>
                 <span>{request.academySize || '규모 미입력'}</span>
                 <time>{request.contact}</time>
+              </article>
+            ))}
+          </div>
+          <div className="tenant-table">
+            {tenantSetupsQuery.isPending && <LoadingState message="테넌트 세팅을 불러오는 중입니다." />}
+            {tenantSetupsQuery.data?.map((tenant) => (
+              <article key={tenant.id}>
+                <strong>{tenant.academyName}</strong>
+                <select
+                  value={tenant.tenantStatus}
+                  onChange={(event) => updateTenantSetupStatus.mutate({ setupId: tenant.id, status: event.target.value as typeof tenant.tenantStatus })}
+                >
+                  <option value="ACTIVE">활성</option>
+                  <option value="SUSPENDED">정지</option>
+                  <option value="CANCELED">해지</option>
+                </select>
+                <span>{tenant.buildStatus}</span>
+                <time>{tenant.ownerContact}</time>
               </article>
             ))}
           </div>

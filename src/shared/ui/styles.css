@@ -1839,6 +1839,22 @@ button {
   margin-top: 18px;
 }
 
+.tenant-setup-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tenant-setup-form input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  padding: 0 12px;
+}
+
 .ticket-form {
   display: grid;
   gap: 8px;
@@ -1868,6 +1884,16 @@ button {
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   padding: 12px;
+}
+
+.tenant-table select {
+  min-width: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  padding: 6px;
+  font-size: 12px;
 }
 
 .tenant-table strong,
