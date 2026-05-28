@@ -75,6 +75,22 @@ export function StudentHomePage() {
             </article>
           ))}
         </section>
+        <section className="mobile-alerts">
+          <h2>클래스노트</h2>
+          <article className="mobile-card note-preview">
+            <strong>5월 26일 보컬 그룹 A</strong>
+            <p>호흡 유지와 8마디 프레이징을 반복 연습했습니다.</p>
+            <span>다음 과제: 템포 72로 2절까지 녹음해오기</span>
+          </article>
+        </section>
+        <section className="mobile-alerts">
+          <h2>공지사항</h2>
+          <article className="mobile-card note-preview">
+            <strong>6월 휴원 안내</strong>
+            <p>현충일 당일은 전체 수업을 휴강합니다.</p>
+            <span>2026.05.28</span>
+          </article>
+        </section>
       </main>
       <nav className="bottom-tabs">
         {[

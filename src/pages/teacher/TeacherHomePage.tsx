@@ -53,6 +53,21 @@ export function TeacherHomePage() {
           <section className="panel">
             <div className="panel-heading">
               <div>
+                <h2>클래스노트</h2>
+                <p>수업 단위로 공유되는 진도와 과제</p>
+              </div>
+            </div>
+            <div className="class-note-box">
+              <strong>오늘 진도</strong>
+              <p>호흡 유지와 8마디 프레이징을 반복 연습했습니다.</p>
+              <strong>다음 과제</strong>
+              <p>템포 72로 2절까지 녹음해오기</p>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-heading">
+              <div>
                 <h2>결석 신청 승인 큐</h2>
                 <p>수강생 요청 결과까지 확인</p>
               </div>
