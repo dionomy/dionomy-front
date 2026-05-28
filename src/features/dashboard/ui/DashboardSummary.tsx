@@ -1,11 +1,32 @@
-const items = [
-  { label: '전체 학생 수', value: '142명', trend: '+8 이번 달', tone: 'success' },
-  { label: '이번 주 출석률', value: '92%', trend: '+3% vs 지난주', tone: 'success' },
-  { label: '이번 달 매출', value: '₩18.4M', trend: '+12% vs 지난달', tone: 'success' },
-  { label: '수강권 만료 임박', value: '7명', trend: '이번 주 +2', tone: 'danger' },
-];
+import { useStudents } from '../../student/api/studentApi';
+import { useSchedules } from '../../schedule/api/scheduleApi';
+
+const weekRange = {
+  from: '2026-05-25',
+  to: '2026-05-31',
+};
 
 export function DashboardSummary() {
+  const studentsQuery = useStudents();
+  const schedulesQuery = useSchedules(weekRange.from, weekRange.to);
+
+  const items = [
+    {
+      label: '전체 학생 수',
+      value: `${studentsQuery.data?.length ?? 0}명`,
+      trend: studentsQuery.isPending ? '불러오는 중' : '실시간',
+      tone: 'success',
+    },
+    {
+      label: '이번 주 수업',
+      value: `${schedulesQuery.data?.length ?? 0}개`,
+      trend: schedulesQuery.isPending ? '불러오는 중' : '캘린더 연동',
+      tone: 'success',
+    },
+    { label: '이번 달 매출', value: 'MVP 제외', trend: '결제 v2', tone: 'success' },
+    { label: '수강권 만료 임박', value: '준비중', trend: '수강권 집계 예정', tone: 'danger' },
+  ];
+
   return (
     <div className="summary-grid">
       {items.map((item) => (

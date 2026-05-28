@@ -1,9 +1,10 @@
-const notices = [
-  { title: '6월 휴원 안내', target: '전체', body: '현충일 당일은 전체 수업을 휴강합니다.', date: '2026.05.28' },
-  { title: '보컬 그룹 A 보강 공지', target: '특정 클래스', body: '5월 30일 14:00 보강 세션이 열립니다.', date: '2026.05.27' },
-] as const;
+import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
+import { useNotices } from '../../features/notice/api/noticeApi';
 
 export function OwnerNoticesPage() {
+  const noticesQuery = useNotices();
+  const notices = noticesQuery.data ?? [];
+
   return (
     <section className="page-stack notices-page">
       <header className="page-hero">
@@ -45,11 +46,14 @@ export function OwnerNoticesPage() {
             </div>
           </div>
           <div className="notice-list">
+            {noticesQuery.isPending && <LoadingState message="공지사항을 불러오는 중입니다." />}
+            {noticesQuery.isError && <ErrorState message="공지사항을 불러오지 못했습니다." />}
+            {noticesQuery.isSuccess && notices.length === 0 && <EmptyState message="등록된 공지사항이 없습니다." />}
             {notices.map((notice) => (
-              <article key={notice.title}>
+              <article key={notice.id}>
                 <div>
                   <strong>{notice.title}</strong>
-                  <span>{notice.target} · {notice.date}</span>
+                  <span>{notice.target === 'ALL' ? '전체' : '특정 클래스'} · {formatDate(notice.createdAt)}</span>
                 </div>
                 <p>{notice.body}</p>
               </article>
@@ -59,4 +63,12 @@ export function OwnerNoticesPage() {
       </div>
     </section>
   );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value));
 }

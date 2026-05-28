@@ -1,11 +1,15 @@
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
+import { ErrorState, LoadingState } from '../../../shared/ui/AsyncState';
+import { useAcademySettings, useUpdateAcademySettings } from '../api/settingsApi';
 import type { AcademySettings } from '../model/settingsTypes';
 
-const settings: AcademySettings = {
-  name: '숭실 코딩학원',
-  contact: '02-1234-5678',
-  address: '서울특별시 동작구 상도로 369 숭실관 3층',
+const fallbackSettings: AcademySettings = {
+  name: '',
+  contact: '',
+  address: '',
   logoUrl: null,
-  mainColor: 'var(--color-brand-9)',
+  mainColor: '#635bff',
   extensionAllowed: true,
   refundAllowed: false,
   makeupEnabled: true,
@@ -14,8 +18,31 @@ const settings: AcademySettings = {
 };
 
 export function AcademySettingsForm() {
+  const settingsQuery = useAcademySettings();
+  const updateSettings = useUpdateAcademySettings();
+  const [settings, setSettings] = useState<AcademySettings>(fallbackSettings);
+
+  useEffect(() => {
+    if (settingsQuery.data) {
+      setSettings(settingsQuery.data);
+    }
+  }, [settingsQuery.data]);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    updateSettings.mutate(settings);
+  };
+
+  if (settingsQuery.isPending) {
+    return <LoadingState message="학원 설정을 불러오는 중입니다." />;
+  }
+
+  if (settingsQuery.isError) {
+    return <ErrorState message="학원 설정을 불러오지 못했습니다." />;
+  }
+
   return (
-    <div className="settings-layout">
+    <form className="settings-layout" onSubmit={handleSubmit}>
       <aside className="settings-nav">
         {['학원 정보', '알림', '결제', '브랜드', '계정 · 권한', '보안', '통합'].map((item, index) => (
           <button className={index === 0 ? 'settings-nav-item active' : 'settings-nav-item'} key={item} type="button">
@@ -42,7 +69,7 @@ export function AcademySettingsForm() {
           <div className="form-grid">
             <label>
               학원 이름 <b>*</b>
-              <input defaultValue={settings.name} />
+              <input value={settings.name} onChange={(event) => setSettings({ ...settings, name: event.target.value })} />
             </label>
             <label>
               대표자 <b>*</b>
@@ -54,11 +81,11 @@ export function AcademySettingsForm() {
             </label>
             <label>
               전화번호 <b>*</b>
-              <input defaultValue={settings.contact} />
+              <input value={settings.contact} onChange={(event) => setSettings({ ...settings, contact: event.target.value })} />
             </label>
             <label className="full">
               주소 <b>*</b>
-              <input defaultValue={settings.address} />
+              <input value={settings.address} onChange={(event) => setSettings({ ...settings, address: event.target.value })} />
             </label>
           </div>
         </article>
@@ -92,28 +119,35 @@ export function AcademySettingsForm() {
           </header>
           <div className="color-swatches">
             {[
-              ['Iris (기본)', settings.mainColor, true],
-              ['Grass', 'var(--color-success-9)', false],
-              ['Amber', 'var(--color-warning-10)', false],
-              ['Tomato', 'var(--color-danger-9)', false],
-              ['Blue', 'var(--color-brand-7)', false],
-              ['Indigo', 'var(--color-brand-8)', false],
-            ].map(([name, color, active]) => (
-              <button className={active ? 'swatch active' : 'swatch'} key={name as string} type="button">
-                <span style={{ backgroundColor: color as string }}>{active ? '✓' : ''}</span>
+              ['Iris (기본)', '#635bff'],
+              ['Grass', '#16a34a'],
+              ['Amber', '#d97706'],
+              ['Tomato', '#dc2626'],
+              ['Blue', '#2563eb'],
+              ['Indigo', '#4f46e5'],
+            ].map(([name, color]) => (
+              <button
+                className={settings.mainColor === color ? 'swatch active' : 'swatch'}
+                key={name}
+                type="button"
+                onClick={() => setSettings({ ...settings, mainColor: color })}
+              >
+                <span style={{ backgroundColor: color }}>{settings.mainColor === color ? '✓' : ''}</span>
                 {name}
               </button>
             ))}
           </div>
         </article>
         <footer className="save-bar">
-          <span>변경 사항 3개</span>
+          <span>{updateSettings.isSuccess ? '저장됨' : '변경 사항 저장 가능'}</span>
           <div>
             <button type="button">취소</button>
-            <button className="primary-button compact" type="button">▣ 저장</button>
+            <button className="primary-button compact" type="submit" disabled={updateSettings.isPending}>
+              {updateSettings.isPending ? '저장 중' : '▣ 저장'}
+            </button>
           </div>
         </footer>
       </div>
-    </div>
+    </form>
   );
 }

@@ -1,10 +1,11 @@
-const sessions = [
-  { time: '16:00', name: '중2 영어 심화반', room: 'A강의실 · 12명', status: '시작 30분 전' },
-  { time: '18:00', name: '고1 수학 정규반', room: 'B강의실 · 16명', status: '예정' },
-  { time: '20:30', name: '중3 영어 회화반', room: 'A강의실 · 10명', status: '예정' },
-];
+import { ErrorState, EmptyState, LoadingState } from '../../../shared/ui/AsyncState';
+import { useSchedules } from '../api/scheduleApi';
+
+const today = '2026-05-28';
 
 export function WeeklySchedulePreview() {
+  const schedulesQuery = useSchedules(today, today);
+
   return (
     <article className="panel today-panel">
       <div className="panel-heading">
@@ -12,17 +13,28 @@ export function WeeklySchedulePreview() {
         <button type="button">전체 보기 →</button>
       </div>
       <div className="session-list">
-        {sessions.map((session) => (
-          <div className="session-row" key={`${session.time}-${session.name}`}>
-            <span className="session-time">{session.time}</span>
+        {schedulesQuery.isPending && <LoadingState message="오늘 수업을 불러오는 중입니다." />}
+        {schedulesQuery.isError && <ErrorState message="오늘 수업을 불러오지 못했습니다." />}
+        {schedulesQuery.isSuccess && schedulesQuery.data.length === 0 && <EmptyState message="오늘 등록된 수업이 없습니다." />}
+        {schedulesQuery.data?.map((session) => (
+          <div className="session-row" key={session.id}>
+            <span className="session-time">{formatTime(session.startsAt)}</span>
             <div>
-              <strong>{session.name}</strong>
-              <small>{session.room}</small>
+              <strong>{session.title}</strong>
+              <small>{session.type === 'GROUP' ? '그룹' : '1:1'} · {session.currentCapacity}/{session.maximumCapacity}명</small>
             </div>
-            <em className={session.status.includes('30분') ? 'status-pill warning' : 'status-pill'}>{session.status}</em>
+            <em className="status-pill">예정</em>
           </div>
         ))}
       </div>
     </article>
   );
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value));
 }

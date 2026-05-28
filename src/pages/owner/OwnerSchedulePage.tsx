@@ -1,3 +1,6 @@
+import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
+import { useSchedules, type ClassSession } from '../../features/schedule/api/scheduleApi';
+
 type ScheduleTone = 'brand' | 'success' | 'warning' | 'danger';
 
 const days = [
@@ -12,7 +15,8 @@ const days = [
 
 const timeSlots = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
 
-const sessions: Array<{
+type ScheduleEvent = {
+  id: string;
   dayIndex: number;
   startHour: number;
   duration: number;
@@ -22,27 +26,12 @@ const sessions: Array<{
   width?: 'half' | 'compact';
   offset?: 'left' | 'right' | 'third';
   overflowCount?: number;
-}> = [
-  { dayIndex: 5, startHour: 10, duration: 2, title: '주말 보충반', meta: 'B강의실 · 김철수', tone: 'success' },
-  { dayIndex: 2, startHour: 14, duration: 1.5, title: '초6 영어 기초', meta: 'A강의실 · 홍길동', tone: 'brand' },
-  { dayIndex: 4, startHour: 14, duration: 1.5, title: '초6 영어 기초', meta: 'A강의실 · 홍길동', tone: 'brand' },
-  { dayIndex: 5, startHour: 14, duration: 2, title: '입시 특강', meta: 'C강의실 · 이영희', tone: 'danger' },
-  { dayIndex: 0, startHour: 16, duration: 1, title: '중2 영어', meta: 'A · 홍길동', tone: 'brand', width: 'half', offset: 'left' },
-  { dayIndex: 0, startHour: 16, duration: 1, title: '고1 수학', meta: 'B · 김철수', tone: 'success', width: 'half', offset: 'right' },
-  { dayIndex: 2, startHour: 16, duration: 1, title: '중2 영어', meta: 'A · 홍', tone: 'brand', width: 'compact', offset: 'left' },
-  { dayIndex: 2, startHour: 16, duration: 1, title: '고1 수학', meta: 'B · 김', tone: 'success', width: 'compact', offset: 'right', overflowCount: 2 },
-  { dayIndex: 4, startHour: 16, duration: 1, title: '중2 영어', meta: 'A · 홍길동', tone: 'brand', width: 'half', offset: 'left' },
-  { dayIndex: 4, startHour: 16, duration: 1, title: '고1 수학', meta: 'B · 김철수', tone: 'success', width: 'half', offset: 'right' },
-  { dayIndex: 0, startHour: 18, duration: 2, title: '고1 수학 정규반', meta: 'B강의실 · 김철수', tone: 'success' },
-  { dayIndex: 1, startHour: 18, duration: 2, title: '고1 수학 정규반', meta: 'B강의실 · 김철수', tone: 'success' },
-  { dayIndex: 3, startHour: 18, duration: 2, title: '고1 수학 정규반', meta: 'B강의실 · 김철수', tone: 'success' },
-  { dayIndex: 2, startHour: 19, duration: 2, title: '고2 물리 심화반', meta: 'C강의실 · 이영희', tone: 'warning' },
-  { dayIndex: 4, startHour: 19, duration: 2, title: '고2 물리 심화반', meta: 'C강의실 · 이영희', tone: 'warning' },
-  { dayIndex: 1, startHour: 20, duration: 2, title: '중3 영어 회화반', meta: 'A강의실 · 홍길동', tone: 'brand' },
-  { dayIndex: 3, startHour: 20, duration: 2, title: '중3 영어 회화반', meta: 'A강의실 · 홍길동', tone: 'brand' },
-];
+};
 
 export function OwnerSchedulePage() {
+  const schedulesQuery = useSchedules('2026-05-25', '2026-05-31');
+  const sessions = schedulesQuery.data?.map(toScheduleEvent) ?? [];
+
   return (
     <section className="page-stack schedule-page">
       <header className="schedule-toolbar">
@@ -66,6 +55,10 @@ export function OwnerSchedulePage() {
           <button className="primary-button compact" type="button">＋ 수업 추가</button>
         </div>
       </header>
+
+      {schedulesQuery.isPending && <LoadingState message="주간 일정을 불러오는 중입니다." />}
+      {schedulesQuery.isError && <ErrorState message="주간 일정을 불러오지 못했습니다." />}
+      {schedulesQuery.isSuccess && schedulesQuery.data.length === 0 && <EmptyState message="등록된 주간 수업이 없습니다." />}
 
       <div className="schedule-board">
         <div className="schedule-week-header">
@@ -137,6 +130,24 @@ export function OwnerSchedulePage() {
 function formatTimeRange(startHour: number, duration: number) {
   const endHour = startHour + duration;
   return `${formatHour(startHour)} - ${formatHour(endHour)}`;
+}
+
+function toScheduleEvent(session: ClassSession): ScheduleEvent {
+  const startsAt = new Date(session.startsAt);
+  const endsAt = new Date(session.endsAt);
+  const dayIndex = startsAt.getDay() === 0 ? 6 : startsAt.getDay() - 1;
+  const startHour = startsAt.getHours() + startsAt.getMinutes() / 60;
+  const duration = (endsAt.getTime() - startsAt.getTime()) / 1000 / 60 / 60;
+
+  return {
+    id: session.id,
+    dayIndex,
+    startHour,
+    duration,
+    title: session.title,
+    meta: `${session.type === 'GROUP' ? '그룹' : '1:1'} · ${session.currentCapacity}/${session.maximumCapacity}명`,
+    tone: session.type === 'GROUP' ? 'brand' : 'success',
+  };
 }
 
 function formatHour(hour: number) {

@@ -1,41 +1,5 @@
-const students = [
-  {
-    name: '정서윤',
-    phone: '010-4821-1940',
-    memo: '재등록 의사 높음',
-    tags: ['초보', '평일 저녁'],
-    pass: '12회권',
-    remaining: 3,
-    total: 12,
-    expiresOn: '2026.06.12',
-    recentClass: '5월 26일 보컬 그룹 A',
-    status: '만료 임박',
-  },
-  {
-    name: '박민재',
-    phone: '010-3381-7288',
-    memo: '출장 일정 변동 잦음',
-    tags: ['1:1', '보강 누적'],
-    pass: '8회권',
-    remaining: 6,
-    total: 8,
-    expiresOn: '2026.07.04',
-    recentClass: '5월 25일 피아노 1:1',
-    status: '정상',
-  },
-  {
-    name: '이하린',
-    phone: '010-9255-0172',
-    memo: '첫 달 적응 관찰',
-    tags: ['신규', '기초반'],
-    pass: '4회 체험권',
-    remaining: 1,
-    total: 4,
-    expiresOn: '2026.05.31',
-    recentClass: '5월 24일 드럼 입문',
-    status: '회차 임박',
-  },
-] as const;
+import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
+import { useStudents } from '../../features/student/api/studentApi';
 
 const products = [
   { name: '4회 체험권', count: 4, period: '30일', price: '120,000원' },
@@ -50,6 +14,10 @@ const usageLogs = [
 ] as const;
 
 export function OwnerStudentsPage() {
+  const studentsQuery = useStudents();
+  const students = studentsQuery.data ?? [];
+  const selectedStudent = students[0];
+
   return (
     <section className="page-stack students-page">
       <header className="page-hero">
@@ -66,18 +34,18 @@ export function OwnerStudentsPage() {
       <div className="student-summary-grid">
         <article className="metric-card">
           <span>등록 수강생</span>
-          <strong>142</strong>
-          <em className="trend-pill success">이번 달 +12</em>
+          <strong>{students.length}</strong>
+          <em className="trend-pill success">실시간</em>
         </article>
         <article className="metric-card">
           <span>만료 임박</span>
-          <strong>18</strong>
-          <em className="trend-pill warning">7일 이내</em>
+          <strong>준비중</strong>
+          <em className="trend-pill warning">수강권 연동 예정</em>
         </article>
         <article className="metric-card">
           <span>회차 소진 임박</span>
-          <strong>11</strong>
-          <em className="trend-pill danger">2회 이하</em>
+          <strong>준비중</strong>
+          <em className="trend-pill danger">수강권 연동 예정</em>
         </article>
       </div>
 
@@ -91,8 +59,11 @@ export function OwnerStudentsPage() {
             <button type="button">전체 보기</button>
           </div>
           <div className="student-table">
+            {studentsQuery.isPending && <LoadingState message="수강생을 불러오는 중입니다." />}
+            {studentsQuery.isError && <ErrorState message="수강생을 불러오지 못했습니다." />}
+            {studentsQuery.isSuccess && students.length === 0 && <EmptyState message="등록된 수강생이 없습니다." />}
             {students.map((student) => (
-              <article className="student-row-card" key={student.phone}>
+              <article className="student-row-card" key={student.id}>
                 <div>
                   <strong>{student.name}</strong>
                   <span>{student.phone}</span>
@@ -103,10 +74,10 @@ export function OwnerStudentsPage() {
                   ))}
                 </div>
                 <div>
-                  <strong>{student.remaining}/{student.total}</strong>
-                  <span>{student.pass} · {student.expiresOn}</span>
+                  <strong>수강권 미발급</strong>
+                  <span>{formatDate(student.createdAt)} 등록</span>
                 </div>
-                <span className={student.status === '정상' ? 'status-pill' : 'status-pill warning'}>{student.status}</span>
+                <span className="status-pill">정상</span>
               </article>
             ))}
           </div>
@@ -116,27 +87,27 @@ export function OwnerStudentsPage() {
           <section className="panel">
             <div className="panel-heading">
               <div>
-                <h2>정서윤 상세</h2>
+                <h2>{selectedStudent ? `${selectedStudent.name} 상세` : '수강생 상세'}</h2>
                 <p>수강권, 최근 수업, 메모</p>
               </div>
             </div>
             <div className="student-detail-stack">
               <div className="pass-progress">
                 <div>
-                  <span>12회권 잔여</span>
-                  <strong>3회</strong>
+                  <span>수강권 잔여</span>
+                  <strong>준비중</strong>
                 </div>
-                <progress value="9" max="12" />
-                <small>2026.06.12 만료 · 기간 또는 회차 중 먼저 만료</small>
+                <progress value="0" max="1" />
+                <small>수강권 발급 API 연동 예정</small>
               </div>
               <dl className="detail-list">
                 <div>
                   <dt>최근 수업</dt>
-                  <dd>{students[0].recentClass}</dd>
+                  <dd>일정 배정 API 연동 예정</dd>
                 </div>
                 <div>
                   <dt>메모</dt>
-                  <dd>{students[0].memo}</dd>
+                  <dd>{selectedStudent?.memo ?? '메모 없음'}</dd>
                 </div>
               </dl>
             </div>
@@ -182,4 +153,12 @@ export function OwnerStudentsPage() {
       </section>
     </section>
   );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value));
 }
