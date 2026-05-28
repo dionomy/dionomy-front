@@ -2,13 +2,15 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
 import { useRegisterStudent, useStudents } from '../../features/student/api/studentApi';
-import { useCreatePassProduct, useIssueStudentPass, usePassProducts, useStudentPasses } from '../../features/pass/api/passApi';
-
-const usageLogs = [
-  { student: '정서윤', type: '차감', count: 1, reason: '5월 26일 출석', time: '2026.05.26 20:12' },
-  { student: '이하린', type: '복구', count: 1, reason: '강사 승인 보강 처리', time: '2026.05.25 15:30' },
-  { student: '박민재', type: '차감', count: 1, reason: '5월 25일 출석', time: '2026.05.25 21:02' },
-] as const;
+import {
+  useCreatePassProduct,
+  useIssueStudentPass,
+  usePassProducts,
+  usePassUsageLogs,
+  useRecordPassUsage,
+  useStudentPasses,
+  type PassUsageType,
+} from '../../features/pass/api/passApi';
 
 export function OwnerStudentsPage() {
   const studentsQuery = useStudents();
@@ -20,6 +22,8 @@ export function OwnerStudentsPage() {
   const selectedStudent = students[0];
   const studentPassesQuery = useStudentPasses(selectedStudent?.id);
   const activeStudentPass = studentPassesQuery.data?.[0];
+  const usageLogsQuery = usePassUsageLogs(activeStudentPass?.id);
+  const recordPassUsage = useRecordPassUsage(selectedStudent?.id, activeStudentPass?.id);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isProductOpen, setIsProductOpen] = useState(false);
   const [studentForm, setStudentForm] = useState({
@@ -35,6 +39,7 @@ export function OwnerStudentsPage() {
     price: 0,
   });
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [usageReason, setUsageReason] = useState('');
 
   const handleRegisterStudent = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -78,6 +83,21 @@ export function OwnerStudentsPage() {
       studentId: selectedStudent.id,
       productId: selectedProductId,
       issuedOn: null,
+    });
+  };
+
+  const handleRecordUsage = (type: PassUsageType) => {
+    if (!activeStudentPass) {
+      return;
+    }
+
+    recordPassUsage.mutate({
+      type,
+      request: {
+        passId: activeStudentPass.id,
+        count: 1,
+        reason: usageReason || (type === 'CONSUME' ? '수동 차감' : '수동 복구'),
+      },
     });
   };
 
@@ -331,13 +351,25 @@ export function OwnerStudentsPage() {
             <p>출석 차감과 결석/보강 복구 로그</p>
           </div>
         </div>
+        <div className="pass-usage-actions">
+          <input
+            placeholder="사유"
+            value={usageReason}
+            onChange={(event) => setUsageReason(event.target.value)}
+            disabled={!activeStudentPass}
+          />
+          <button type="button" disabled={!activeStudentPass || recordPassUsage.isPending} onClick={() => handleRecordUsage('CONSUME')}>차감</button>
+          <button type="button" disabled={!activeStudentPass || recordPassUsage.isPending} onClick={() => handleRecordUsage('RESTORE')}>복구</button>
+        </div>
         <div className="usage-log-list">
-          {usageLogs.map((log) => (
-            <article key={`${log.student}-${log.time}`}>
-              <span className={log.type === '차감' ? 'log-badge consume' : 'log-badge restore'}>{log.type}</span>
-              <strong>{log.student}</strong>
+          {usageLogsQuery.isPending && activeStudentPass && <LoadingState message="사용 이력을 불러오는 중입니다." />}
+          {usageLogsQuery.isSuccess && usageLogsQuery.data.length === 0 && <EmptyState message="사용 이력이 없습니다." />}
+          {usageLogsQuery.data?.map((log) => (
+            <article key={log.id}>
+              <span className={log.type === 'CONSUME' ? 'log-badge consume' : 'log-badge restore'}>{log.type === 'CONSUME' ? '차감' : '복구'}</span>
+              <strong>{selectedStudent?.name ?? '수강생'}</strong>
               <span>{log.count}회 · {log.reason}</span>
-              <time>{log.time}</time>
+              <time>{formatDate(log.createdAt)}</time>
             </article>
           ))}
         </div>

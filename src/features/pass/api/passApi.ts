@@ -25,6 +25,18 @@ export type StudentPass = {
   expired: boolean;
 };
 
+export type PassUsageType = 'CONSUME' | 'RESTORE';
+
+export type PassUsageLog = {
+  id: string;
+  passId: string;
+  studentId: string;
+  type: PassUsageType;
+  count: number;
+  reason: string;
+  createdAt: string;
+};
+
 export type CreatePassProductRequest = {
   name: string;
   totalCount: number;
@@ -36,6 +48,12 @@ export type IssueStudentPassRequest = {
   studentId: string;
   productId: string;
   issuedOn: string | null;
+};
+
+export type RecordPassUsageRequest = {
+  passId: string;
+  count: number;
+  reason: string;
 };
 
 export function listPassProducts() {
@@ -61,6 +79,30 @@ export function issueStudentPass(request: IssueStudentPassRequest) {
       issuedOn: request.issuedOn,
     }),
   });
+}
+
+export function consumeStudentPass(request: RecordPassUsageRequest) {
+  return apiRequest<PassUsageLog>(`/api/student-passes/${request.passId}/consume`, {
+    method: 'POST',
+    body: JSON.stringify({
+      count: request.count,
+      reason: request.reason,
+    }),
+  });
+}
+
+export function restoreStudentPass(request: RecordPassUsageRequest) {
+  return apiRequest<PassUsageLog>(`/api/student-passes/${request.passId}/restore`, {
+    method: 'POST',
+    body: JSON.stringify({
+      count: request.count,
+      reason: request.reason,
+    }),
+  });
+}
+
+export function listPassUsageLogs(passId: string) {
+  return apiRequest<PassUsageLog[]>(`/api/student-passes/${passId}/usage-logs`);
 }
 
 export function usePassProducts() {
@@ -96,6 +138,27 @@ export function useIssueStudentPass() {
     mutationFn: issueStudentPass,
     onSuccess: (studentPass) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.studentPasses(studentPass.studentId) });
+    },
+  });
+}
+
+export function usePassUsageLogs(passId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.passUsageLogs(passId),
+    queryFn: () => listPassUsageLogs(passId as string),
+    enabled: Boolean(passId),
+  });
+}
+
+export function useRecordPassUsage(studentId: string | undefined, passId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ type, request }: { type: PassUsageType; request: RecordPassUsageRequest }) =>
+      type === 'CONSUME' ? consumeStudentPass(request) : restoreStudentPass(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.studentPasses(studentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.passUsageLogs(passId) });
     },
   });
 }

@@ -1258,6 +1258,33 @@ button {
   font-size: 13px;
 }
 
+.pass-usage-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.pass-usage-actions input {
+  min-width: 0;
+  height: 40px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  padding: 0 12px;
+}
+
+.pass-usage-actions button {
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .student-row-card {
   display: grid;
   grid-template-columns: 150px minmax(160px, 1fr) 150px 86px;
