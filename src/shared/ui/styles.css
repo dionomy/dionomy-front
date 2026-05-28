@@ -340,6 +340,13 @@ button {
   font-size: 14px;
 }
 
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--color-text-brand);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .primary-button {
   border: 0;
   border-radius: 8px;
@@ -1360,6 +1367,90 @@ button {
   color: var(--color-solid-success);
 }
 
+.teacher-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 16px;
+  align-items: start;
+}
+
+.teacher-side,
+.attendance-check-list,
+.absence-queue,
+.teacher-student-list {
+  display: grid;
+  gap: 10px;
+}
+
+.attendance-check-list,
+.absence-queue,
+.teacher-student-list {
+  margin-top: 18px;
+}
+
+.attendance-check-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.attendance-check-list strong,
+.attendance-check-list span,
+.absence-queue strong,
+.absence-queue span,
+.teacher-student-list strong,
+.teacher-student-list span {
+  display: block;
+}
+
+.attendance-check-list span,
+.absence-queue span,
+.teacher-student-list span {
+  margin-top: 3px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.attendance-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  gap: 6px;
+}
+
+.attendance-actions button {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-app);
+  color: var(--color-text-secondary);
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.attendance-actions button.active {
+  border-color: var(--color-solid-brand);
+  background: var(--color-brand-3);
+  color: var(--color-solid-brand);
+}
+
+.absence-queue article,
+.teacher-student-list article {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.absence-queue article div {
+  display: flex;
+  gap: 6px;
+}
+
 .mobile-page {
   display: grid;
   grid-template-rows: auto auto 1fr auto;
@@ -1675,6 +1766,7 @@ button {
   .form-grid,
   .student-summary-grid,
   .students-layout,
+  .teacher-layout,
   .student-row-card,
   .usage-log-list article {
     grid-template-columns: 1fr;
