@@ -2,12 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
 import { useRegisterStudent, useStudents } from '../../features/student/api/studentApi';
-
-const products = [
-  { name: '4회 체험권', count: 4, period: '30일', price: '120,000원' },
-  { name: '8회 정규권', count: 8, period: '60일', price: '220,000원' },
-  { name: '12회 집중권', count: 12, period: '90일', price: '318,000원' },
-] as const;
+import { useCreatePassProduct, useIssueStudentPass, usePassProducts, useStudentPasses } from '../../features/pass/api/passApi';
 
 const usageLogs = [
   { student: '정서윤', type: '차감', count: 1, reason: '5월 26일 출석', time: '2026.05.26 20:12' },
@@ -18,15 +13,28 @@ const usageLogs = [
 export function OwnerStudentsPage() {
   const studentsQuery = useStudents();
   const registerStudent = useRegisterStudent();
+  const passProductsQuery = usePassProducts();
+  const createPassProduct = useCreatePassProduct();
+  const issueStudentPass = useIssueStudentPass();
   const students = studentsQuery.data ?? [];
   const selectedStudent = students[0];
+  const studentPassesQuery = useStudentPasses(selectedStudent?.id);
+  const activeStudentPass = studentPassesQuery.data?.[0];
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isProductOpen, setIsProductOpen] = useState(false);
   const [studentForm, setStudentForm] = useState({
     name: '',
     phone: '',
     memo: '',
     tags: '',
   });
+  const [productForm, setProductForm] = useState({
+    name: '',
+    totalCount: 4,
+    validDays: 30,
+    price: 0,
+  });
+  const [selectedProductId, setSelectedProductId] = useState('');
 
   const handleRegisterStudent = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -49,6 +57,30 @@ export function OwnerStudentsPage() {
     );
   };
 
+  const handleCreatePassProduct = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    createPassProduct.mutate(productForm, {
+      onSuccess: () => {
+        setProductForm({ name: '', totalCount: 4, validDays: 30, price: 0 });
+        setIsProductOpen(false);
+      },
+    });
+  };
+
+  const handleIssueStudentPass = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedStudent || !selectedProductId) {
+      return;
+    }
+
+    issueStudentPass.mutate({
+      studentId: selectedStudent.id,
+      productId: selectedProductId,
+      issuedOn: null,
+    });
+  };
+
   return (
     <section className="page-stack students-page">
       <header className="page-hero">
@@ -57,7 +89,9 @@ export function OwnerStudentsPage() {
           <p>등록, 수강권 발급, 차감/복구 이력을 한 화면에서 확인합니다.</p>
         </div>
         <div className="hero-actions">
-          <button className="secondary-button" type="button">수강권 상품</button>
+          <button className="secondary-button" type="button" onClick={() => setIsProductOpen((value) => !value)}>
+            수강권 상품
+          </button>
           <button className="primary-button" type="button" onClick={() => setIsRegisterOpen((value) => !value)}>
             ＋ 수강생 등록
           </button>
@@ -107,6 +141,63 @@ export function OwnerStudentsPage() {
             <button type="button" onClick={() => setIsRegisterOpen(false)}>취소</button>
             <button className="primary-button compact" type="submit" disabled={registerStudent.isPending}>
               {registerStudent.isPending ? '등록 중' : '등록'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {isProductOpen && (
+        <form className="panel inline-form-panel" onSubmit={handleCreatePassProduct}>
+          <div className="panel-heading">
+            <div>
+              <h2>수강권 상품 등록</h2>
+              <p>회차, 유효기간, 가격을 입력합니다.</p>
+            </div>
+          </div>
+          <div className="form-grid">
+            <label>
+              상품명 <b>*</b>
+              <input
+                required
+                value={productForm.name}
+                onChange={(event) => setProductForm({ ...productForm, name: event.target.value })}
+              />
+            </label>
+            <label>
+              회차 <b>*</b>
+              <input
+                min="1"
+                required
+                type="number"
+                value={productForm.totalCount}
+                onChange={(event) => setProductForm({ ...productForm, totalCount: Number(event.target.value) })}
+              />
+            </label>
+            <label>
+              유효기간 <b>*</b>
+              <input
+                min="1"
+                required
+                type="number"
+                value={productForm.validDays}
+                onChange={(event) => setProductForm({ ...productForm, validDays: Number(event.target.value) })}
+              />
+            </label>
+            <label>
+              가격
+              <input
+                min="0"
+                type="number"
+                value={productForm.price}
+                onChange={(event) => setProductForm({ ...productForm, price: Number(event.target.value) })}
+              />
+            </label>
+          </div>
+          {createPassProduct.isError && <ErrorState message="수강권 상품 등록에 실패했습니다." />}
+          <div className="form-actions">
+            <button type="button" onClick={() => setIsProductOpen(false)}>취소</button>
+            <button className="primary-button compact" type="submit" disabled={createPassProduct.isPending}>
+              {createPassProduct.isPending ? '등록 중' : '등록'}
             </button>
           </div>
         </form>
@@ -176,10 +267,10 @@ export function OwnerStudentsPage() {
               <div className="pass-progress">
                 <div>
                   <span>수강권 잔여</span>
-                  <strong>준비중</strong>
+                  <strong>{activeStudentPass ? `${activeStudentPass.remainingCount}회` : '미발급'}</strong>
                 </div>
-                <progress value="0" max="1" />
-                <small>수강권 발급 API 연동 예정</small>
+                <progress value={activeStudentPass?.usedCount ?? 0} max={activeStudentPass?.totalCount ?? 1} />
+                <small>{activeStudentPass ? `${formatDate(activeStudentPass.expiresOn)} 만료` : '수강권을 발급하세요'}</small>
               </div>
               <dl className="detail-list">
                 <div>
@@ -202,14 +293,33 @@ export function OwnerStudentsPage() {
               </div>
             </div>
             <div className="pass-product-list">
-              {products.map((product) => (
-                <article key={product.name}>
+              {passProductsQuery.isPending && <LoadingState message="수강권 상품을 불러오는 중입니다." />}
+              {passProductsQuery.isError && <ErrorState message="수강권 상품을 불러오지 못했습니다." />}
+              {passProductsQuery.isSuccess && passProductsQuery.data.length === 0 && <EmptyState message="등록된 수강권 상품이 없습니다." />}
+              {passProductsQuery.data?.map((product) => (
+                <article key={product.id}>
                   <strong>{product.name}</strong>
-                  <span>{product.count}회 · {product.period}</span>
-                  <b>{product.price}</b>
+                  <span>{product.totalCount}회 · {product.validDays}일</span>
+                  <b>{formatCurrency(product.price)}</b>
                 </article>
               ))}
             </div>
+            <form className="pass-issue-form" onSubmit={handleIssueStudentPass}>
+              <select
+                value={selectedProductId}
+                onChange={(event) => setSelectedProductId(event.target.value)}
+                disabled={!selectedStudent || !passProductsQuery.data?.length}
+              >
+                <option value="">발급할 상품 선택</option>
+                {passProductsQuery.data?.map((product) => (
+                  <option key={product.id} value={product.id}>{product.name}</option>
+                ))}
+              </select>
+              <button className="primary-button compact" type="submit" disabled={!selectedStudent || !selectedProductId || issueStudentPass.isPending}>
+                {issueStudentPass.isPending ? '발급 중' : '발급'}
+              </button>
+            </form>
+            {issueStudentPass.isError && <ErrorState message="수강권 발급에 실패했습니다." />}
           </section>
         </aside>
       </div>
@@ -242,4 +352,12 @@ function formatDate(value: string) {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date(value));
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('ko-KR', {
+    style: 'currency',
+    currency: 'KRW',
+    maximumFractionDigits: 0,
+  }).format(value);
 }
