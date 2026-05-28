@@ -1,4 +1,41 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { useAbsenceRequests, useCreateAbsenceRequest, type AbsenceDesiredResult } from '../../features/absence/api/absenceApi';
+import { useSchedules } from '../../features/schedule/api/scheduleApi';
+import { useStudents } from '../../features/student/api/studentApi';
+
+const today = '2026-05-28';
+
 export function StudentHomePage() {
+  const schedulesQuery = useSchedules(today, '2026-06-03');
+  const studentsQuery = useStudents();
+  const student = studentsQuery.data?.[0];
+  const nextSession = schedulesQuery.data?.[0];
+  const absenceRequestsQuery = useAbsenceRequests(student?.id);
+  const createAbsenceRequest = useCreateAbsenceRequest(student?.id);
+  const [reason, setReason] = useState('');
+  const [desiredResult, setDesiredResult] = useState<AbsenceDesiredResult>('MAKEUP');
+
+  const handleAbsenceRequest = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!student || !nextSession) {
+      return;
+    }
+
+    createAbsenceRequest.mutate(
+      {
+        studentId: student.id,
+        sessionId: nextSession.id,
+        reason,
+        desiredResult,
+      },
+      {
+        onSuccess: () => setReason(''),
+      },
+    );
+  };
+
   return (
     <section className="mobile-page">
       <div className="status-bar">
@@ -19,11 +56,11 @@ export function StudentHomePage() {
         <article className="mobile-hero">
           <p>다음 수업</p>
           <div>
-            <strong>19:00</strong>
-            <span>오늘</span>
-            <em>보컬 그룹 A</em>
+            <strong>{nextSession ? formatTime(nextSession.startsAt) : '--:--'}</strong>
+            <span>{nextSession ? '예정' : '없음'}</span>
+            <em>{nextSession?.title ?? '배정된 수업 없음'}</em>
           </div>
-          <p>김하늘 강사 · B룸</p>
+          <p>{nextSession ? `${nextSession.type === 'GROUP' ? '그룹' : '1:1'} · ${nextSession.currentCapacity}/${nextSession.maximumCapacity}명` : '원장이 수업을 배정하면 표시됩니다.'}</p>
         </article>
         <div className="quick-actions">
           {[
@@ -46,30 +83,40 @@ export function StudentHomePage() {
             </div>
             <button aria-label="전체 보기" type="button">›</button>
           </header>
-          {[
-            ['오늘', '19:00 보컬 그룹 A', '예정'],
-            ['5.30', '14:00 발성 클리닉', '보강'],
-            ['6.03', '19:00 보컬 그룹 A', '대기'],
-          ].map(([time, title, state], index) => (
-            <div className="mobile-class-row" key={time}>
-              <strong>{time}</strong>
+          {schedulesQuery.data?.map((session, index) => (
+            <div className="mobile-class-row" key={session.id}>
+              <strong>{formatShortDate(session.startsAt)}</strong>
               <i className={index === 0 ? 'live' : undefined} />
-              <span>{title}</span>
-              <em className={index === 0 ? 'live' : undefined}>{state}</em>
+              <span>{formatTime(session.startsAt)} {session.title}</span>
+              <em className={index === 0 ? 'live' : undefined}>{index === 0 ? '예정' : '대기'}</em>
             </div>
           ))}
         </article>
+        <form className="mobile-card absence-request-form" onSubmit={handleAbsenceRequest}>
+          <h2>결석 신청</h2>
+          <input
+            required
+            placeholder="사유"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            disabled={!student || !nextSession}
+          />
+          <select value={desiredResult} onChange={(event) => setDesiredResult(event.target.value as AbsenceDesiredResult)}>
+            <option value="MAKEUP">보강</option>
+            <option value="MOVE_TO_OTHER_SESSION">다른 세션 이동</option>
+          </select>
+          <button type="submit" disabled={!student || !nextSession || createAbsenceRequest.isPending}>
+            {createAbsenceRequest.isPending ? '신청 중' : '신청'}
+          </button>
+        </form>
         <section className="mobile-alerts">
           <h2>확인할 것</h2>
-          {[
-            ['▭', '잔여 3회 · 2026.06.12 만료', '기간 또는 회차 중 먼저 만료돼요', 'warning'],
-            ['!', '결석 신청 승인 대기', '6월 3일 수업 보강 요청이 접수됐어요', 'danger'],
-          ].map(([icon, title, body, tone]) => (
-            <article className="mobile-card alert-row" key={title}>
-              <span className={tone}>{icon}</span>
+          {absenceRequestsQuery.data?.map((request) => (
+            <article className="mobile-card alert-row" key={request.id}>
+              <span className="danger">!</span>
               <div>
-                <strong>{title}</strong>
-                <p>{body}</p>
+                <strong>결석 신청 {formatAbsenceStatus(request.status)}</strong>
+                <p>{request.desiredResult === 'MAKEUP' ? '보강' : '다른 세션 이동'} · {request.reason}</p>
               </div>
               <button aria-label="상세 보기" type="button">›</button>
             </article>
@@ -107,4 +154,23 @@ export function StudentHomePage() {
       </nav>
     </section>
   );
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function formatShortDate(value: string) {
+  const date = new Date(value);
+  return `${date.getMonth() + 1}.${date.getDate()}`;
+}
+
+function formatAbsenceStatus(status: string) {
+  if (status === 'APPROVED') return '승인';
+  if (status === 'REJECTED') return '거절';
+  return '승인 대기';
 }
