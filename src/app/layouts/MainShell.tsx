@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { RoleSwitcher } from '../../features/auth/ui/RoleSwitcher';
 
-type OwnerPage = 'dashboard' | 'settings';
+type OwnerPage = 'dashboard' | 'schedule' | 'settings';
 
 const mainNavigation = [
   { key: 'dashboard', label: '대시보드', icon: '⌂' },
@@ -24,8 +24,13 @@ export function MainShell({
   children: ReactNode;
   onNavigate?: (page: OwnerPage) => void;
 }) {
-  const pageTitle = activePage === 'settings' ? '설정' : '대시보드';
-  const searchPlaceholder = activePage === 'settings' ? '수업명, 강사, 학생 검색' : '학생, 강사, 클래스 검색';
+  const pageTitle = activePage === 'settings' ? '설정' : activePage === 'schedule' ? '시간표' : '대시보드';
+  const searchPlaceholder =
+    activePage === 'settings'
+      ? '수업명, 강사, 학생 검색'
+      : activePage === 'schedule'
+        ? '수업명, 강사명 검색'
+        : '학생, 강사, 클래스 검색';
 
   return (
     <div className="app-shell">
@@ -44,7 +49,7 @@ export function MainShell({
             <button
               className={item.key === activePage ? 'nav-item active' : 'nav-item'}
               key={item.key}
-              onClick={() => item.key === 'dashboard' && onNavigate?.('dashboard')}
+              onClick={() => onNavigate?.(item.key)}
               type="button"
             >
               <span>{item.icon}</span>
