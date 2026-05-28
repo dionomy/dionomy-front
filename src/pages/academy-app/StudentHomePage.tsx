@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAbsenceRequests, useCreateAbsenceRequest, type AbsenceDesiredResult } from '../../features/absence/api/absenceApi';
+import { useClassNotes } from '../../features/class-note/api/classNoteApi';
+import { useNotices } from '../../features/notice/api/noticeApi';
+import { useStudentPasses } from '../../features/pass/api/passApi';
 import { useSchedules } from '../../features/schedule/api/scheduleApi';
 import { useStudents } from '../../features/student/api/studentApi';
 
@@ -11,6 +14,10 @@ export function StudentHomePage() {
   const studentsQuery = useStudents();
   const student = studentsQuery.data?.[0];
   const nextSession = schedulesQuery.data?.[0];
+  const studentPassesQuery = useStudentPasses(student?.id);
+  const activePass = studentPassesQuery.data?.[0];
+  const classNotesQuery = useClassNotes();
+  const noticesQuery = useNotices();
   const absenceRequestsQuery = useAbsenceRequests(student?.id);
   const createAbsenceRequest = useCreateAbsenceRequest(student?.id);
   const [reason, setReason] = useState('');
@@ -111,6 +118,14 @@ export function StudentHomePage() {
         </form>
         <section className="mobile-alerts">
           <h2>확인할 것</h2>
+          <article className="mobile-card alert-row">
+            <span className="success">▭</span>
+            <div>
+              <strong>{activePass ? `잔여 ${activePass.remainingCount}회` : '수강권 미발급'}</strong>
+              <p>{activePass ? `${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
+            </div>
+            <button aria-label="상세 보기" type="button">›</button>
+          </article>
           {absenceRequestsQuery.data?.map((request) => (
             <article className="mobile-card alert-row" key={request.id}>
               <span className="danger">!</span>
@@ -124,19 +139,23 @@ export function StudentHomePage() {
         </section>
         <section className="mobile-alerts">
           <h2>클래스노트</h2>
-          <article className="mobile-card note-preview">
-            <strong>5월 26일 보컬 그룹 A</strong>
-            <p>호흡 유지와 8마디 프레이징을 반복 연습했습니다.</p>
-            <span>다음 과제: 템포 72로 2절까지 녹음해오기</span>
-          </article>
+          {classNotesQuery.data?.slice(0, 3).map((note) => (
+            <article className="mobile-card note-preview" key={note.id}>
+              <strong>{formatDate(note.createdAt)}</strong>
+              <p>{note.feedback}</p>
+              <span>다음 과제: {note.nextAssignment || '없음'}</span>
+            </article>
+          ))}
         </section>
         <section className="mobile-alerts">
           <h2>공지사항</h2>
-          <article className="mobile-card note-preview">
-            <strong>6월 휴원 안내</strong>
-            <p>현충일 당일은 전체 수업을 휴강합니다.</p>
-            <span>2026.05.28</span>
-          </article>
+          {noticesQuery.data?.slice(0, 3).map((notice) => (
+            <article className="mobile-card note-preview" key={notice.id}>
+              <strong>{notice.title}</strong>
+              <p>{notice.body}</p>
+              <span>{formatDate(notice.createdAt)}</span>
+            </article>
+          ))}
         </section>
       </main>
       <nav className="bottom-tabs">
@@ -167,6 +186,14 @@ function formatTime(value: string) {
 function formatShortDate(value: string) {
   const date = new Date(value);
   return `${date.getMonth() + 1}.${date.getDate()}`;
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value));
 }
 
 function formatAbsenceStatus(status: string) {
