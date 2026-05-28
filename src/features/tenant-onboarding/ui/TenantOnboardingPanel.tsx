@@ -8,7 +8,12 @@ const steps = [
 export function TenantOnboardingPanel() {
   return (
     <article className="panel">
-      <h2>신규 학원 온보딩</h2>
+      <div className="panel-heading">
+        <div>
+          <h2>신규 학원 온보딩</h2>
+          <p>화이트라벨 설정과 빌드 트리거</p>
+        </div>
+      </div>
       <ol className="step-list">
         {steps.map((step) => (
           <li key={step}>{step}</li>
