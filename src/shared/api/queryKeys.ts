@@ -10,5 +10,7 @@ export const queryKeys = {
   classNotes: (sessionId?: string) => ['class-notes', sessionId ?? 'all'] as const,
   riskStudents: ['risk-students'] as const,
   careRecords: (studentId?: string) => ['care-records', studentId ?? 'none'] as const,
+  demoRequests: ['demo-requests'] as const,
+  csTickets: ['cs-tickets'] as const,
   notices: ['notices'] as const,
 };

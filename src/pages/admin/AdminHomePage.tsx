@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { EmptyState, ErrorState, LoadingState } from '../../shared/ui/AsyncState';
+import { useCreateCsTicket, useCreateDemoRequest, useCsTickets, useDemoRequests } from '../../features/company/api/companyApi';
 import { TenantOnboardingPanel } from '../../features/tenant-onboarding/ui/TenantOnboardingPanel';
 
 const tenants = [
@@ -6,13 +10,37 @@ const tenants = [
   { name: '모던 드로잉 클래스', status: '정지', build: '실패', lastActive: '5월 21일' },
 ] as const;
 
-const tickets = [
-  { title: '데모 신청: 리듬 보컬 스튜디오', type: '데모', state: '대기' },
-  { title: '화이트라벨 컬러 변경 문의', type: 'CS', state: '응대중' },
-  { title: '빌드 실패 재시도 요청', type: 'CS', state: '대기' },
-] as const;
-
 export function AdminHomePage() {
+  const demoRequestsQuery = useDemoRequests();
+  const csTicketsQuery = useCsTickets();
+  const createDemoRequest = useCreateDemoRequest();
+  const createCsTicket = useCreateCsTicket();
+  const [demoForm, setDemoForm] = useState({
+    academyName: '',
+    businessType: '',
+    academySize: '',
+    contact: '',
+  });
+  const [ticketForm, setTicketForm] = useState({
+    title: '',
+    body: '',
+    contact: '',
+  });
+
+  const handleCreateDemoRequest = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    createDemoRequest.mutate(demoForm, {
+      onSuccess: () => setDemoForm({ academyName: '', businessType: '', academySize: '', contact: '' }),
+    });
+  };
+
+  const handleCreateCsTicket = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    createCsTicket.mutate(ticketForm, {
+      onSuccess: () => setTicketForm({ title: '', body: '', contact: '' }),
+    });
+  };
+
   return (
     <section className="page-stack admin-page">
       <header className="page-hero">
@@ -29,13 +57,20 @@ export function AdminHomePage() {
           <strong>Dionomy</strong>
           <h2>성인 취미 학원을 위한 운영 앱 세팅 서비스</h2>
           <p>일정, 수강권, 출석, 클래스노트, 이탈 신호를 학원별 정책에 맞춰 세팅합니다.</p>
+          <ul>
+            <li>운영 일정과 수강권</li>
+            <li>강사/수강생 앱 경험</li>
+            <li>CRM 위험 신호</li>
+          </ul>
         </div>
-        <form>
-          <input aria-label="학원명" placeholder="학원명" />
-          <input aria-label="업종" placeholder="업종" />
-          <input aria-label="규모" placeholder="수강생 규모" />
-          <input aria-label="연락처" placeholder="연락처" />
-          <button className="primary-button" type="button">데모 신청</button>
+        <form onSubmit={handleCreateDemoRequest}>
+          <input aria-label="학원명" placeholder="학원명" required value={demoForm.academyName} onChange={(event) => setDemoForm({ ...demoForm, academyName: event.target.value })} />
+          <input aria-label="업종" placeholder="업종" value={demoForm.businessType} onChange={(event) => setDemoForm({ ...demoForm, businessType: event.target.value })} />
+          <input aria-label="규모" placeholder="수강생 규모" value={demoForm.academySize} onChange={(event) => setDemoForm({ ...demoForm, academySize: event.target.value })} />
+          <input aria-label="연락처" placeholder="연락처" required value={demoForm.contact} onChange={(event) => setDemoForm({ ...demoForm, contact: event.target.value })} />
+          <button className="primary-button" type="submit" disabled={createDemoRequest.isPending}>
+            {createDemoRequest.isPending ? '신청 중' : '데모 신청'}
+          </button>
         </form>
       </section>
 
@@ -48,12 +83,15 @@ export function AdminHomePage() {
             </div>
           </div>
           <div className="tenant-table">
-            {tenants.map((tenant) => (
-              <article key={tenant.name}>
-                <strong>{tenant.name}</strong>
-                <span>{tenant.status}</span>
-                <span>{tenant.build}</span>
-                <time>{tenant.lastActive}</time>
+            {demoRequestsQuery.isPending && <LoadingState message="데모 신청을 불러오는 중입니다." />}
+            {demoRequestsQuery.isError && <ErrorState message="데모 신청을 불러오지 못했습니다." />}
+            {demoRequestsQuery.isSuccess && demoRequestsQuery.data.length === 0 && <EmptyState message="데모 신청이 없습니다." />}
+            {demoRequestsQuery.data?.map((request) => (
+              <article key={request.id}>
+                <strong>{request.academyName}</strong>
+                <span>{request.businessType || '업종 미입력'}</span>
+                <span>{request.academySize || '규모 미입력'}</span>
+                <time>{request.contact}</time>
               </article>
             ))}
           </div>
@@ -68,12 +106,20 @@ export function AdminHomePage() {
                 <p>FAQ/문의/데모 신청 통합 처리</p>
               </div>
             </div>
+            <form className="ticket-form" onSubmit={handleCreateCsTicket}>
+              <input placeholder="제목" required value={ticketForm.title} onChange={(event) => setTicketForm({ ...ticketForm, title: event.target.value })} />
+              <input placeholder="연락처" required value={ticketForm.contact} onChange={(event) => setTicketForm({ ...ticketForm, contact: event.target.value })} />
+              <textarea placeholder="문의 내용" required value={ticketForm.body} onChange={(event) => setTicketForm({ ...ticketForm, body: event.target.value })} />
+              <button className="primary-button compact" type="submit" disabled={createCsTicket.isPending}>
+                {createCsTicket.isPending ? '등록 중' : '문의 등록'}
+              </button>
+            </form>
             <div className="ticket-list">
-              {tickets.map((ticket) => (
-                <article key={ticket.title}>
-                  <span>{ticket.type}</span>
+              {csTicketsQuery.data?.map((ticket) => (
+                <article key={ticket.id}>
+                  <span>CS</span>
                   <strong>{ticket.title}</strong>
-                  <em>{ticket.state}</em>
+                  <em>{ticket.status}</em>
                 </article>
               ))}
             </div>

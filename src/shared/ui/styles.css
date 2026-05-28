@@ -1801,6 +1801,15 @@ button {
   gap: 8px;
 }
 
+.company-landing-preview ul {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding-left: 18px;
+  color: var(--color-neutral-3);
+  font-size: 13px;
+}
+
 .company-landing-preview input {
   width: 100%;
   border: 1px solid var(--color-neutral-10);
@@ -1828,6 +1837,27 @@ button {
 .ticket-list,
 .step-list {
   margin-top: 18px;
+}
+
+.ticket-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.ticket-form input,
+.ticket-form textarea {
+  width: 100%;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  padding: 10px 12px;
+}
+
+.ticket-form textarea {
+  min-height: 84px;
+  resize: vertical;
 }
 
 .tenant-table article {
