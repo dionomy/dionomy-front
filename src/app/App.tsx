@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { MainShell } from './layouts/MainShell';
 import { useAuthStore } from '../features/auth/model/authStore';
 import { OwnerDashboardPage } from '../pages/owner/OwnerDashboardPage';
@@ -8,20 +9,17 @@ import { TeacherHomePage } from '../pages/teacher/TeacherHomePage';
 
 export function App() {
   const role = useAuthStore((state) => state.session.user.role);
+  const [ownerPage, setOwnerPage] = useState<'dashboard' | 'settings'>('dashboard');
 
   if (role === 'STUDENT') {
     return <StudentHomePage />;
   }
 
   return (
-    <MainShell>
+    <MainShell activePage={ownerPage} onNavigate={setOwnerPage}>
       {role === 'DIONOMY_ADMIN' && <AdminHomePage />}
-      {role === 'OWNER' && (
-        <>
-          <OwnerDashboardPage />
-          <OwnerSettingsPage />
-        </>
-      )}
+      {role === 'OWNER' && ownerPage === 'dashboard' && <OwnerDashboardPage />}
+      {role === 'OWNER' && ownerPage === 'settings' && <OwnerSettingsPage />}
       {role === 'TEACHER' && <TeacherHomePage />}
     </MainShell>
   );

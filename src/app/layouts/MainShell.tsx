@@ -1,31 +1,90 @@
 import type { ReactNode } from 'react';
 import { RoleSwitcher } from '../../features/auth/ui/RoleSwitcher';
 
-const navigation = [
-  '대시보드',
-  '통합일정',
-  '수강생',
-  '강사',
-  '공지사항',
-  'CRM',
-  '설정',
-];
+type OwnerPage = 'dashboard' | 'settings';
 
-export function MainShell({ children }: { children: ReactNode }) {
+const mainNavigation = [
+  { key: 'dashboard', label: '대시보드', icon: '⌂' },
+  { key: 'schedule', label: '시간표', icon: '□' },
+] as const;
+
+const operationNavigation = [
+  { label: '클래스', icon: '▣', count: '8' },
+  { label: '학생', icon: '◇', count: '142' },
+  { label: '강사', icon: '♧', count: '6' },
+  { label: '결제 · 수강증', icon: '▭' },
+] as const;
+
+export function MainShell({
+  activePage = 'dashboard',
+  children,
+  onNavigate,
+}: {
+  activePage?: OwnerPage;
+  children: ReactNode;
+  onNavigate?: (page: OwnerPage) => void;
+}) {
+  const pageTitle = activePage === 'settings' ? '설정' : '대시보드';
+  const searchPlaceholder = activePage === 'settings' ? '수업명, 강사, 학생 검색' : '학생, 강사, 클래스 검색';
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">Dionomy</div>
+        <div className="brand-lockup">
+          <div className="brand-mark">D</div>
+          <div>
+            <strong>Dionomy</strong>
+            <span>숭실 코딩학원</span>
+          </div>
+        </div>
         <RoleSwitcher />
         <nav className="nav-list">
-          {navigation.map((item) => (
-            <button className="nav-item" key={item} type="button">
-              {item}
+          <p className="nav-section">MAIN</p>
+          {mainNavigation.map((item) => (
+            <button
+              className={item.key === activePage ? 'nav-item active' : 'nav-item'}
+              key={item.key}
+              onClick={() => item.key === 'dashboard' && onNavigate?.('dashboard')}
+              type="button"
+            >
+              <span>{item.icon}</span>
+              <strong>{item.label}</strong>
             </button>
           ))}
+          <p className="nav-section">OPERATION</p>
+          {operationNavigation.map((item) => (
+            <button className="nav-item" key={item.label} type="button">
+              <span>{item.icon}</span>
+              <strong>{item.label}</strong>
+              {'count' in item && <em>{item.count}</em>}
+            </button>
+          ))}
+          <div className="nav-spacer" />
+          <button
+            className={activePage === 'settings' ? 'nav-item active' : 'nav-item'}
+            onClick={() => onNavigate?.('settings')}
+            type="button"
+          >
+            <span>⚙</span>
+            <strong>설정</strong>
+          </button>
         </nav>
       </aside>
-      <main className="content">{children}</main>
+      <main className="main-area">
+        <header className="topbar">
+          <h1>{pageTitle}</h1>
+          <div className="topbar-spacer" />
+          <label className="search-box">
+            <span>⌕</span>
+            <input aria-label="검색" placeholder={searchPlaceholder} />
+          </label>
+          <button aria-label="알림" className="icon-button" type="button">
+            ♢
+          </button>
+          <div className="avatar">김도</div>
+        </header>
+        <div className="content">{children}</div>
+      </main>
     </div>
   );
 }
