@@ -2,10 +2,10 @@ import { AcademySettingsForm } from '../../features/academy-settings/ui/AcademyS
 
 export function OwnerSettingsPage() {
   return (
-    <section className="page-stack">
-      <header>
-        <p className="eyebrow">학원 설정</p>
-        <h1>화이트라벨과 운영 정책</h1>
+    <section className="page-stack settings-page">
+      <header className="settings-hero">
+        <h2>설정</h2>
+        <p>학원 정보 · 알림 · 결제 · 브랜드 등을 관리합니다</p>
       </header>
       <AcademySettingsForm />
     </section>
