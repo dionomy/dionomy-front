@@ -1568,6 +1568,38 @@ button {
   font-size: 12px;
 }
 
+.class-note-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.class-note-form input,
+.class-note-form textarea {
+  width: 100%;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.class-note-form textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.class-note-box article {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 10px;
+}
+
+.class-note-box span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
 .notices-layout {
   display: grid;
   grid-template-columns: 420px minmax(0, 1fr);

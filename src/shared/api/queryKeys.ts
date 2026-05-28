@@ -7,5 +7,6 @@ export const queryKeys = {
   schedules: (from: string, to: string) => ['schedules', from, to] as const,
   attendance: (sessionId: string | undefined) => ['attendance', sessionId] as const,
   absenceRequests: (studentId?: string) => ['absence-requests', studentId ?? 'all'] as const,
+  classNotes: (sessionId?: string) => ['class-notes', sessionId ?? 'all'] as const,
   notices: ['notices'] as const,
 };

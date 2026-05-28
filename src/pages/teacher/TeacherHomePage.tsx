@@ -1,6 +1,9 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
 import { useAbsenceRequests, useResolveAbsenceRequest } from '../../features/absence/api/absenceApi';
 import { useAttendance, useRecordAttendance, type AttendanceStatus } from '../../features/attendance/api/attendanceApi';
+import { useClassNotes, useCreateClassNote } from '../../features/class-note/api/classNoteApi';
 import { useSchedules } from '../../features/schedule/api/scheduleApi';
 import { useStudents } from '../../features/student/api/studentApi';
 
@@ -18,11 +21,39 @@ export function TeacherHomePage() {
   const session = schedulesQuery.data?.[0];
   const attendanceQuery = useAttendance(session?.id);
   const recordAttendance = useRecordAttendance();
+  const classNotesQuery = useClassNotes(session?.id);
+  const createClassNote = useCreateClassNote(session?.id);
   const absenceRequestsQuery = useAbsenceRequests();
   const resolveAbsenceRequest = useResolveAbsenceRequest();
   const students = studentsQuery.data ?? [];
   const attendanceByStudent = new Map(attendanceQuery.data?.map((record) => [record.studentId, record.status]));
   const pendingAbsenceRequests = absenceRequestsQuery.data?.filter((request) => request.status === 'PENDING') ?? [];
+  const [noteForm, setNoteForm] = useState({
+    progress: '',
+    feedback: '',
+    nextAssignment: '',
+  });
+
+  const handleCreateClassNote = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!session) {
+      return;
+    }
+
+    createClassNote.mutate(
+      {
+        sessionId: session.id,
+        teacherId: defaultTeacherId,
+        progress: noteForm.progress,
+        feedback: noteForm.feedback,
+        nextAssignment: noteForm.nextAssignment,
+      },
+      {
+        onSuccess: () => setNoteForm({ progress: '', feedback: '', nextAssignment: '' }),
+      },
+    );
+  };
 
   return (
     <section className="page-stack teacher-page">
@@ -32,7 +63,7 @@ export function TeacherHomePage() {
           <h2>오늘 수업</h2>
           <p>출석 체크, 결석 승인, 담당 수강생 상태를 처리합니다.</p>
         </div>
-        <button className="primary-button" type="button">클래스노트 작성</button>
+        <button className="primary-button" type="button">클래스노트</button>
       </header>
 
       <div className="teacher-layout">
@@ -87,11 +118,42 @@ export function TeacherHomePage() {
                 <p>수업 단위로 공유되는 진도와 과제</p>
               </div>
             </div>
+            <form className="class-note-form" onSubmit={handleCreateClassNote}>
+              <input
+                required
+                placeholder="진도"
+                value={noteForm.progress}
+                onChange={(event) => setNoteForm({ ...noteForm, progress: event.target.value })}
+                disabled={!session}
+              />
+              <textarea
+                required
+                placeholder="피드백"
+                value={noteForm.feedback}
+                onChange={(event) => setNoteForm({ ...noteForm, feedback: event.target.value })}
+                disabled={!session}
+              />
+              <input
+                placeholder="다음 과제"
+                value={noteForm.nextAssignment}
+                onChange={(event) => setNoteForm({ ...noteForm, nextAssignment: event.target.value })}
+                disabled={!session}
+              />
+              {createClassNote.isError && <ErrorState message="클래스노트 작성에 실패했습니다." />}
+              <button className="primary-button compact" type="submit" disabled={!session || createClassNote.isPending}>
+                {createClassNote.isPending ? '저장 중' : '저장'}
+              </button>
+            </form>
             <div className="class-note-box">
-              <strong>오늘 진도</strong>
-              <p>호흡 유지와 8마디 프레이징을 반복 연습했습니다.</p>
-              <strong>다음 과제</strong>
-              <p>템포 72로 2절까지 녹음해오기</p>
+              {classNotesQuery.isPending && <LoadingState message="클래스노트를 불러오는 중입니다." />}
+              {classNotesQuery.isSuccess && classNotesQuery.data.length === 0 && <EmptyState message="이전 클래스노트가 없습니다." />}
+              {classNotesQuery.data?.map((note) => (
+                <article key={note.id}>
+                  <strong>{note.progress}</strong>
+                  <p>{note.feedback}</p>
+                  <span>{note.nextAssignment}</span>
+                </article>
+              ))}
             </div>
           </section>
 
