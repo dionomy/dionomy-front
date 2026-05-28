@@ -1,5 +1,7 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
-import { useStudents } from '../../features/student/api/studentApi';
+import { useRegisterStudent, useStudents } from '../../features/student/api/studentApi';
 
 const products = [
   { name: '4회 체험권', count: 4, period: '30일', price: '120,000원' },
@@ -15,8 +17,37 @@ const usageLogs = [
 
 export function OwnerStudentsPage() {
   const studentsQuery = useStudents();
+  const registerStudent = useRegisterStudent();
   const students = studentsQuery.data ?? [];
   const selectedStudent = students[0];
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [studentForm, setStudentForm] = useState({
+    name: '',
+    phone: '',
+    memo: '',
+    tags: '',
+  });
+
+  const handleRegisterStudent = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    registerStudent.mutate(
+      {
+        name: studentForm.name,
+        phone: studentForm.phone,
+        memo: studentForm.memo || null,
+        tags: studentForm.tags
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      },
+      {
+        onSuccess: () => {
+          setStudentForm({ name: '', phone: '', memo: '', tags: '' });
+          setIsRegisterOpen(false);
+        },
+      },
+    );
+  };
 
   return (
     <section className="page-stack students-page">
@@ -27,9 +58,59 @@ export function OwnerStudentsPage() {
         </div>
         <div className="hero-actions">
           <button className="secondary-button" type="button">수강권 상품</button>
-          <button className="primary-button" type="button">＋ 수강생 등록</button>
+          <button className="primary-button" type="button" onClick={() => setIsRegisterOpen((value) => !value)}>
+            ＋ 수강생 등록
+          </button>
         </div>
       </header>
+
+      {isRegisterOpen && (
+        <form className="panel inline-form-panel" onSubmit={handleRegisterStudent}>
+          <div className="panel-heading">
+            <div>
+              <h2>수강생 등록</h2>
+              <p>이름, 연락처, 메모, 태그를 입력합니다.</p>
+            </div>
+          </div>
+          <div className="form-grid">
+            <label>
+              이름 <b>*</b>
+              <input
+                required
+                value={studentForm.name}
+                onChange={(event) => setStudentForm({ ...studentForm, name: event.target.value })}
+              />
+            </label>
+            <label>
+              연락처 <b>*</b>
+              <input
+                required
+                value={studentForm.phone}
+                onChange={(event) => setStudentForm({ ...studentForm, phone: event.target.value })}
+              />
+            </label>
+            <label className="full">
+              메모
+              <input value={studentForm.memo} onChange={(event) => setStudentForm({ ...studentForm, memo: event.target.value })} />
+            </label>
+            <label className="full">
+              태그
+              <input
+                placeholder="쉼표로 구분"
+                value={studentForm.tags}
+                onChange={(event) => setStudentForm({ ...studentForm, tags: event.target.value })}
+              />
+            </label>
+          </div>
+          {registerStudent.isError && <ErrorState message="수강생 등록에 실패했습니다." />}
+          <div className="form-actions">
+            <button type="button" onClick={() => setIsRegisterOpen(false)}>취소</button>
+            <button className="primary-button compact" type="submit" disabled={registerStudent.isPending}>
+              {registerStudent.isPending ? '등록 중' : '등록'}
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="student-summary-grid">
         <article className="metric-card">

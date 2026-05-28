@@ -1,5 +1,7 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
-import { useSchedules, type ClassSession } from '../../features/schedule/api/scheduleApi';
+import { useCreateSchedule, useSchedules, type ClassSession, type ClassType } from '../../features/schedule/api/scheduleApi';
 
 type ScheduleTone = 'brand' | 'success' | 'warning' | 'danger';
 
@@ -14,6 +16,11 @@ const days = [
 ];
 
 const timeSlots = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+const weekRange = {
+  from: '2026-05-25',
+  to: '2026-05-31',
+};
+const defaultTeacherId = '00000000-0000-0000-0000-000000000101';
 
 type ScheduleEvent = {
   id: string;
@@ -29,8 +36,47 @@ type ScheduleEvent = {
 };
 
 export function OwnerSchedulePage() {
-  const schedulesQuery = useSchedules('2026-05-25', '2026-05-31');
+  const schedulesQuery = useSchedules(weekRange.from, weekRange.to);
+  const createSchedule = useCreateSchedule(weekRange.from, weekRange.to);
   const sessions = schedulesQuery.data?.map(toScheduleEvent) ?? [];
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    title: '',
+    type: 'GROUP' as ClassType,
+    startsAt: '2026-05-28T18:00',
+    endsAt: '2026-05-28T19:00',
+    maximumCapacity: 8,
+  });
+
+  const handleCreateSchedule = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    createSchedule.mutate(
+      {
+        title: scheduleForm.title,
+        type: scheduleForm.type,
+        teacherId: defaultTeacherId,
+        placeId: null,
+        startsAt: scheduleForm.startsAt,
+        endsAt: scheduleForm.endsAt,
+        currentCapacity: 0,
+        maximumCapacity: scheduleForm.maximumCapacity,
+        assignedStudentIds: [],
+        recurrence: null,
+      },
+      {
+        onSuccess: () => {
+          setScheduleForm({
+            title: '',
+            type: 'GROUP',
+            startsAt: '2026-05-28T18:00',
+            endsAt: '2026-05-28T19:00',
+            maximumCapacity: 8,
+          });
+          setIsCreateOpen(false);
+        },
+      },
+    );
+  };
 
   return (
     <section className="page-stack schedule-page">
@@ -52,9 +98,74 @@ export function OwnerSchedulePage() {
             <button type="button">월간</button>
           </div>
           <button className="secondary-button" type="button">▽ 필터</button>
-          <button className="primary-button compact" type="button">＋ 수업 추가</button>
+          <button className="primary-button compact" type="button" onClick={() => setIsCreateOpen((value) => !value)}>
+            ＋ 수업 추가
+          </button>
         </div>
       </header>
+
+      {isCreateOpen && (
+        <form className="panel inline-form-panel" onSubmit={handleCreateSchedule}>
+          <div className="panel-heading">
+            <div>
+              <h2>수업 등록</h2>
+              <p>타입, 시간, 정원을 입력합니다.</p>
+            </div>
+          </div>
+          <div className="form-grid">
+            <label>
+              수업명 <b>*</b>
+              <input
+                required
+                value={scheduleForm.title}
+                onChange={(event) => setScheduleForm({ ...scheduleForm, title: event.target.value })}
+              />
+            </label>
+            <label>
+              타입 <b>*</b>
+              <select value={scheduleForm.type} onChange={(event) => setScheduleForm({ ...scheduleForm, type: event.target.value as ClassType })}>
+                <option value="GROUP">그룹</option>
+                <option value="ONE_ON_ONE">1:1</option>
+              </select>
+            </label>
+            <label>
+              시작 <b>*</b>
+              <input
+                required
+                type="datetime-local"
+                value={scheduleForm.startsAt}
+                onChange={(event) => setScheduleForm({ ...scheduleForm, startsAt: event.target.value })}
+              />
+            </label>
+            <label>
+              종료 <b>*</b>
+              <input
+                required
+                type="datetime-local"
+                value={scheduleForm.endsAt}
+                onChange={(event) => setScheduleForm({ ...scheduleForm, endsAt: event.target.value })}
+              />
+            </label>
+            <label>
+              정원 <b>*</b>
+              <input
+                min="1"
+                required
+                type="number"
+                value={scheduleForm.maximumCapacity}
+                onChange={(event) => setScheduleForm({ ...scheduleForm, maximumCapacity: Number(event.target.value) })}
+              />
+            </label>
+          </div>
+          {createSchedule.isError && <ErrorState message="수업 등록에 실패했습니다." />}
+          <div className="form-actions">
+            <button type="button" onClick={() => setIsCreateOpen(false)}>취소</button>
+            <button className="primary-button compact" type="submit" disabled={createSchedule.isPending}>
+              {createSchedule.isPending ? '등록 중' : '등록'}
+            </button>
+          </div>
+        </form>
+      )}
 
       {schedulesQuery.isPending && <LoadingState message="주간 일정을 불러오는 중입니다." />}
       {schedulesQuery.isError && <ErrorState message="주간 일정을 불러오지 못했습니다." />}

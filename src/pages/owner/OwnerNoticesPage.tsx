@@ -1,9 +1,35 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
-import { useNotices } from '../../features/notice/api/noticeApi';
+import { useCreateNotice, useNotices, type Notice } from '../../features/notice/api/noticeApi';
 
 export function OwnerNoticesPage() {
   const noticesQuery = useNotices();
+  const createNotice = useCreateNotice();
   const notices = noticesQuery.data ?? [];
+  const [noticeForm, setNoticeForm] = useState({
+    title: '',
+    body: '',
+    target: 'ALL' as Notice['target'],
+  });
+
+  const handleCreateNotice = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    createNotice.mutate(
+      {
+        title: noticeForm.title,
+        body: noticeForm.body,
+        imageUrl: null,
+        target: noticeForm.target,
+        classId: null,
+      },
+      {
+        onSuccess: () => {
+          setNoticeForm({ title: '', body: '', target: 'ALL' });
+        },
+      },
+    );
+  };
 
   return (
     <section className="page-stack notices-page">
@@ -16,7 +42,7 @@ export function OwnerNoticesPage() {
       </header>
 
       <div className="notices-layout">
-        <section className="panel notice-editor">
+        <form className="panel notice-editor" onSubmit={handleCreateNotice}>
           <div className="panel-heading">
             <div>
               <h2>새 공지</h2>
@@ -25,18 +51,42 @@ export function OwnerNoticesPage() {
           </div>
           <label>
             <span>제목</span>
-            <input defaultValue="6월 정규반 일정 안내" />
+            <input
+              required
+              value={noticeForm.title}
+              onChange={(event) => setNoticeForm({ ...noticeForm, title: event.target.value })}
+            />
           </label>
           <label>
             <span>본문</span>
-            <textarea defaultValue="6월 정규반 일정과 보강 가능 시간을 안내드립니다." />
+            <textarea
+              required
+              value={noticeForm.body}
+              onChange={(event) => setNoticeForm({ ...noticeForm, body: event.target.value })}
+            />
           </label>
           <div className="notice-options">
-            <button className="active" type="button">전체</button>
-            <button type="button">특정 클래스</button>
+            <button
+              className={noticeForm.target === 'ALL' ? 'active' : undefined}
+              type="button"
+              onClick={() => setNoticeForm({ ...noticeForm, target: 'ALL' })}
+            >
+              전체
+            </button>
+            <button
+              className={noticeForm.target === 'CLASS' ? 'active' : undefined}
+              type="button"
+              onClick={() => setNoticeForm({ ...noticeForm, target: 'CLASS' })}
+              disabled
+            >
+              특정 클래스
+            </button>
           </div>
-          <button className="primary-button" type="button">발송</button>
-        </section>
+          {createNotice.isError && <ErrorState message="공지 발송에 실패했습니다." />}
+          <button className="primary-button" type="submit" disabled={createNotice.isPending}>
+            {createNotice.isPending ? '발송 중' : '발송'}
+          </button>
+        </form>
 
         <section className="panel">
           <div className="panel-heading">
