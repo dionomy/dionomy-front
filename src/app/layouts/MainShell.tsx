@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { RoleSwitcher } from '../../features/auth/ui/RoleSwitcher';
 
-type OwnerPage = 'dashboard' | 'schedule' | 'settings';
+type OwnerPage = 'dashboard' | 'schedule' | 'students' | 'settings';
 
 const mainNavigation = [
   { key: 'dashboard', label: '대시보드', icon: '⌂' },
@@ -9,8 +9,8 @@ const mainNavigation = [
 ] as const;
 
 const operationNavigation = [
-  { label: '클래스', icon: '▣', count: '8' },
-  { label: '학생', icon: '◇', count: '142' },
+  { key: 'schedule', label: '클래스', icon: '▣', count: '8' },
+  { key: 'students', label: '학생', icon: '◇', count: '142' },
   { label: '강사', icon: '♧', count: '6' },
   { label: '결제 · 수강증', icon: '▭' },
 ] as const;
@@ -24,13 +24,22 @@ export function MainShell({
   children: ReactNode;
   onNavigate?: (page: OwnerPage) => void;
 }) {
-  const pageTitle = activePage === 'settings' ? '설정' : activePage === 'schedule' ? '시간표' : '대시보드';
+  const pageTitle =
+    activePage === 'settings'
+      ? '설정'
+      : activePage === 'schedule'
+        ? '시간표'
+        : activePage === 'students'
+          ? '학생'
+          : '대시보드';
   const searchPlaceholder =
     activePage === 'settings'
       ? '수업명, 강사, 학생 검색'
       : activePage === 'schedule'
         ? '수업명, 강사명 검색'
-        : '학생, 강사, 클래스 검색';
+        : activePage === 'students'
+          ? '수강생명, 연락처, 태그 검색'
+          : '학생, 강사, 클래스 검색';
 
   return (
     <div className="app-shell">
@@ -58,7 +67,16 @@ export function MainShell({
           ))}
           <p className="nav-section">OPERATION</p>
           {operationNavigation.map((item) => (
-            <button className="nav-item" key={item.label} type="button">
+            <button
+              className={'key' in item && item.key === activePage ? 'nav-item active' : 'nav-item'}
+              key={item.label}
+              onClick={() => {
+                if ('key' in item) {
+                  onNavigate?.(item.key);
+                }
+              }}
+              type="button"
+            >
               <span>{item.icon}</span>
               <strong>{item.label}</strong>
               {'count' in item && <em>{item.count}</em>}
