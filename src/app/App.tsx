@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MainShell } from './layouts/MainShell';
 import { useAuthStore } from '../features/auth/model/authStore';
 import { OwnerDashboardPage } from '../pages/owner/OwnerDashboardPage';
+import { OwnerNoticesPage } from '../pages/owner/OwnerNoticesPage';
 import { OwnerSchedulePage } from '../pages/owner/OwnerSchedulePage';
 import { OwnerSettingsPage } from '../pages/owner/OwnerSettingsPage';
 import { OwnerStudentsPage } from '../pages/owner/OwnerStudentsPage';
@@ -11,7 +12,7 @@ import { TeacherHomePage } from '../pages/teacher/TeacherHomePage';
 
 export function App() {
   const role = useAuthStore((state) => state.session.user.role);
-  const [ownerPage, setOwnerPage] = useState<'dashboard' | 'schedule' | 'students' | 'settings'>('dashboard');
+  const [ownerPage, setOwnerPage] = useState<'dashboard' | 'schedule' | 'students' | 'notices' | 'settings'>('dashboard');
 
   if (role === 'STUDENT') {
     return <StudentHomePage />;
@@ -23,6 +24,7 @@ export function App() {
       {role === 'OWNER' && ownerPage === 'dashboard' && <OwnerDashboardPage />}
       {role === 'OWNER' && ownerPage === 'schedule' && <OwnerSchedulePage />}
       {role === 'OWNER' && ownerPage === 'students' && <OwnerStudentsPage />}
+      {role === 'OWNER' && ownerPage === 'notices' && <OwnerNoticesPage />}
       {role === 'OWNER' && ownerPage === 'settings' && <OwnerSettingsPage />}
       {role === 'TEACHER' && <TeacherHomePage />}
     </MainShell>

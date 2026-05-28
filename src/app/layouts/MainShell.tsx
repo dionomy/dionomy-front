@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { RoleSwitcher } from '../../features/auth/ui/RoleSwitcher';
 
-type OwnerPage = 'dashboard' | 'schedule' | 'students' | 'settings';
+type OwnerPage = 'dashboard' | 'schedule' | 'students' | 'notices' | 'settings';
 
 const mainNavigation = [
   { key: 'dashboard', label: '대시보드', icon: '⌂' },
@@ -12,6 +12,7 @@ const operationNavigation = [
   { key: 'schedule', label: '클래스', icon: '▣', count: '8' },
   { key: 'students', label: '학생', icon: '◇', count: '142' },
   { label: '강사', icon: '♧', count: '6' },
+  { key: 'notices', label: '공지', icon: '!' },
   { label: '결제 · 수강증', icon: '▭' },
 ] as const;
 
@@ -31,6 +32,8 @@ export function MainShell({
         ? '시간표'
         : activePage === 'students'
           ? '학생'
+          : activePage === 'notices'
+            ? '공지'
           : '대시보드';
   const searchPlaceholder =
     activePage === 'settings'
@@ -39,6 +42,8 @@ export function MainShell({
         ? '수업명, 강사명 검색'
         : activePage === 'students'
           ? '수강생명, 연락처, 태그 검색'
+          : activePage === 'notices'
+            ? '공지 제목, 클래스 검색'
           : '학생, 강사, 클래스 검색';
 
   return (
