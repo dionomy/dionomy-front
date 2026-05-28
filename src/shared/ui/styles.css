@@ -962,6 +962,38 @@ button {
   background: var(--color-bg-app);
 }
 
+.schedule-detail-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.schedule-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+}
+
+.assignment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.assignment-list > strong {
+  font-size: 13px;
+}
+
+.assignment-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .schedule-week-header {
   display: grid;
   grid-template-columns: 64px repeat(7, minmax(0, 1fr));

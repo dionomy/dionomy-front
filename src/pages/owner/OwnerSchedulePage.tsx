@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
-import { useCreateSchedule, useSchedules, type ClassSession, type ClassType } from '../../features/schedule/api/scheduleApi';
+import {
+  useAssignStudentsToSchedule,
+  useCancelSchedule,
+  useCreateSchedule,
+  useMoveSchedule,
+  useSchedules,
+  type ClassSession,
+  type ClassType,
+} from '../../features/schedule/api/scheduleApi';
+import { useStudents } from '../../features/student/api/studentApi';
 
 type ScheduleTone = 'brand' | 'success' | 'warning' | 'danger';
 
@@ -30,6 +39,8 @@ type ScheduleEvent = {
   title: string;
   meta: string;
   tone: ScheduleTone;
+  startsAt: string;
+  endsAt: string;
   width?: 'half' | 'compact';
   offset?: 'left' | 'right' | 'third';
   overflowCount?: number;
@@ -38,7 +49,13 @@ type ScheduleEvent = {
 export function OwnerSchedulePage() {
   const schedulesQuery = useSchedules(weekRange.from, weekRange.to);
   const createSchedule = useCreateSchedule(weekRange.from, weekRange.to);
+  const assignStudents = useAssignStudentsToSchedule(weekRange.from, weekRange.to);
+  const moveSchedule = useMoveSchedule(weekRange.from, weekRange.to);
+  const cancelSchedule = useCancelSchedule(weekRange.from, weekRange.to);
+  const studentsQuery = useStudents();
   const sessions = schedulesQuery.data?.map(toScheduleEvent) ?? [];
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const selectedSession = schedulesQuery.data?.find((session) => session.id === selectedSessionId) ?? schedulesQuery.data?.[0];
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
     title: '',
@@ -46,6 +63,10 @@ export function OwnerSchedulePage() {
     startsAt: '2026-05-28T18:00',
     endsAt: '2026-05-28T19:00',
     maximumCapacity: 8,
+  });
+  const [moveForm, setMoveForm] = useState({
+    startsAt: '2026-05-28T18:00',
+    endsAt: '2026-05-28T19:00',
   });
 
   const handleCreateSchedule = (event: FormEvent<HTMLFormElement>) => {
@@ -76,6 +97,35 @@ export function OwnerSchedulePage() {
         },
       },
     );
+  };
+
+  const handleAssignStudent = (studentId: string, checked: boolean) => {
+    if (!selectedSession) {
+      return;
+    }
+
+    const nextStudentIds = checked
+      ? [...selectedSession.assignedStudentIds, studentId]
+      : selectedSession.assignedStudentIds.filter((id) => id !== studentId);
+
+    assignStudents.mutate({
+      sessionId: selectedSession.id,
+      studentIds: Array.from(new Set(nextStudentIds)),
+    });
+  };
+
+  const handleMoveSchedule = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedSession) {
+      return;
+    }
+
+    moveSchedule.mutate({
+      sessionId: selectedSession.id,
+      startsAt: moveForm.startsAt,
+      endsAt: moveForm.endsAt,
+    });
   };
 
   return (
@@ -203,6 +253,13 @@ export function OwnerSchedulePage() {
                         .filter(Boolean)
                         .join(' ')}
                       key={`${session.dayIndex}-${session.startHour}-${session.title}-${session.offset ?? 'full'}`}
+                      onClick={() => {
+                        setSelectedSessionId(session.id);
+                        setMoveForm({
+                          startsAt: toDatetimeLocal(session.startsAt),
+                          endsAt: toDatetimeLocal(session.endsAt),
+                        });
+                      }}
                       style={{
                         top: `${(session.startHour - 9) * 56 + 2}px`,
                         height: `${session.duration * 56 - 4}px`,
@@ -234,6 +291,60 @@ export function OwnerSchedulePage() {
           </div>
         </div>
       </div>
+
+      {selectedSession && (
+        <section className="panel schedule-detail-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>{selectedSession.title}</h2>
+              <p>{formatTimeRangeFromIso(selectedSession.startsAt, selectedSession.endsAt)} · {selectedSession.currentCapacity}/{selectedSession.maximumCapacity}명</p>
+            </div>
+            <button
+              className="secondary-button compact"
+              type="button"
+              disabled={cancelSchedule.isPending}
+              onClick={() => cancelSchedule.mutate(selectedSession.id)}
+            >
+              취소
+            </button>
+          </div>
+          <div className="schedule-detail-grid">
+            <form className="inline-form-panel" onSubmit={handleMoveSchedule}>
+              <div className="form-grid">
+                <label>
+                  시작
+                  <input type="datetime-local" value={moveForm.startsAt} onChange={(event) => setMoveForm({ ...moveForm, startsAt: event.target.value })} />
+                </label>
+                <label>
+                  종료
+                  <input type="datetime-local" value={moveForm.endsAt} onChange={(event) => setMoveForm({ ...moveForm, endsAt: event.target.value })} />
+                </label>
+              </div>
+              {moveSchedule.isError && <ErrorState message="일정 이동에 실패했습니다. 강사/장소 충돌 가능성이 있습니다." />}
+              <div className="form-actions">
+                <button className="primary-button compact" type="submit" disabled={moveSchedule.isPending}>
+                  {moveSchedule.isPending ? '이동 중' : '일정 이동'}
+                </button>
+              </div>
+            </form>
+            <div className="assignment-list">
+              <strong>수강생 배정</strong>
+              {studentsQuery.data?.map((student) => (
+                <label key={student.id}>
+                  <input
+                    type="checkbox"
+                    checked={selectedSession.assignedStudentIds.includes(student.id)}
+                    onChange={(event) => handleAssignStudent(student.id, event.target.checked)}
+                  />
+                  <span>{student.name}</span>
+                </label>
+              ))}
+              {studentsQuery.isSuccess && studentsQuery.data.length === 0 && <EmptyState message="배정할 수강생이 없습니다." />}
+              {assignStudents.isError && <ErrorState message="수강생 배정에 실패했습니다." />}
+            </div>
+          </div>
+        </section>
+      )}
     </section>
   );
 }
@@ -258,6 +369,8 @@ function toScheduleEvent(session: ClassSession): ScheduleEvent {
     title: session.title,
     meta: `${session.type === 'GROUP' ? '그룹' : '1:1'} · ${session.currentCapacity}/${session.maximumCapacity}명`,
     tone: session.type === 'GROUP' ? 'brand' : 'success',
+    startsAt: session.startsAt,
+    endsAt: session.endsAt,
   };
 }
 
@@ -265,4 +378,12 @@ function formatHour(hour: number) {
   const whole = Math.floor(hour);
   const minutes = hour % 1 === 0 ? '00' : '30';
   return `${whole.toString().padStart(2, '0')}:${minutes}`;
+}
+
+function toDatetimeLocal(value: string) {
+  return value.slice(0, 16);
+}
+
+function formatTimeRangeFromIso(startsAt: string, endsAt: string) {
+  return `${toDatetimeLocal(startsAt).replace('T', ' ')} - ${toDatetimeLocal(endsAt).split('T')[1]}`;
 }
