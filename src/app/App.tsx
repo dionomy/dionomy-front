@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { MainShell } from './layouts/MainShell';
+import { useEffect, useState } from 'react';
+import { MainShell, type OwnerPage } from './layouts/MainShell';
 import { useAuthStore } from '../features/auth/model/authStore';
+import type { UserRole } from '../features/auth/model/authTypes';
 import { OwnerDashboardPage } from '../pages/owner/OwnerDashboardPage';
 import { OwnerNoticesPage } from '../pages/owner/OwnerNoticesPage';
 import { OwnerSchedulePage } from '../pages/owner/OwnerSchedulePage';
@@ -10,23 +11,122 @@ import { AdminHomePage } from '../pages/admin/AdminHomePage';
 import { StudentHomePage } from '../pages/academy-app/StudentHomePage';
 import { TeacherHomePage } from '../pages/teacher/TeacherHomePage';
 
+type AppRoute =
+  | { kind: 'owner'; page: OwnerPage; path: string }
+  | { kind: 'teacher'; path: string }
+  | { kind: 'student'; path: string }
+  | { kind: 'admin'; path: string };
+
+const ownerPaths: Record<OwnerPage, string> = {
+  dashboard: '/owner/dashboard',
+  schedule: '/owner/schedule',
+  students: '/owner/students',
+  notices: '/owner/notices',
+  settings: '/owner/settings',
+};
+
+const defaultPathByRole: Record<UserRole, string> = {
+  OWNER: ownerPaths.dashboard,
+  TEACHER: '/teacher',
+  STUDENT: '/student',
+  DIONOMY_ADMIN: '/admin',
+};
+
+function routeFromPath(pathname: string): AppRoute {
+  switch (pathname) {
+    case '/':
+    case '/owner':
+    case '/owner/dashboard':
+      return { kind: 'owner', page: 'dashboard', path: ownerPaths.dashboard };
+    case '/owner/schedule':
+      return { kind: 'owner', page: 'schedule', path: ownerPaths.schedule };
+    case '/owner/students':
+      return { kind: 'owner', page: 'students', path: ownerPaths.students };
+    case '/owner/notices':
+      return { kind: 'owner', page: 'notices', path: ownerPaths.notices };
+    case '/owner/settings':
+      return { kind: 'owner', page: 'settings', path: ownerPaths.settings };
+    case '/teacher':
+      return { kind: 'teacher', path: '/teacher' };
+    case '/student':
+      return { kind: 'student', path: '/student' };
+    case '/admin':
+      return { kind: 'admin', path: '/admin' };
+    default:
+      return { kind: 'owner', page: 'dashboard', path: ownerPaths.dashboard };
+  }
+}
+
+function roleFromRoute(route: AppRoute): UserRole {
+  if (route.kind === 'teacher') {
+    return 'TEACHER';
+  }
+
+  if (route.kind === 'student') {
+    return 'STUDENT';
+  }
+
+  if (route.kind === 'admin') {
+    return 'DIONOMY_ADMIN';
+  }
+
+  return 'OWNER';
+}
+
 export function App() {
   const role = useAuthStore((state) => state.session.user.role);
-  const [ownerPage, setOwnerPage] = useState<'dashboard' | 'schedule' | 'students' | 'notices' | 'settings'>('dashboard');
+  const switchRole = useAuthStore((state) => state.switchRole);
+  const [route, setRoute] = useState<AppRoute>(() => routeFromPath(window.location.pathname));
 
-  if (role === 'STUDENT') {
+  function navigate(path: string, replace = false) {
+    const nextRoute = routeFromPath(path);
+
+    if (window.location.pathname !== nextRoute.path) {
+      if (replace) {
+        window.history.replaceState(null, '', nextRoute.path);
+      } else {
+        window.history.pushState(null, '', nextRoute.path);
+      }
+    }
+
+    setRoute(nextRoute);
+  }
+
+  useEffect(() => {
+    const handlePopState = () => setRoute(routeFromPath(window.location.pathname));
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const routeRole = roleFromRoute(route);
+
+    if (role !== routeRole) {
+      switchRole(routeRole);
+    }
+  }, [role, route, switchRole]);
+
+  if (route.kind === 'student') {
     return <StudentHomePage />;
   }
 
   return (
-    <MainShell activePage={ownerPage} onNavigate={setOwnerPage}>
-      {role === 'DIONOMY_ADMIN' && <AdminHomePage />}
-      {role === 'OWNER' && ownerPage === 'dashboard' && <OwnerDashboardPage />}
-      {role === 'OWNER' && ownerPage === 'schedule' && <OwnerSchedulePage />}
-      {role === 'OWNER' && ownerPage === 'students' && <OwnerStudentsPage />}
-      {role === 'OWNER' && ownerPage === 'notices' && <OwnerNoticesPage />}
-      {role === 'OWNER' && ownerPage === 'settings' && <OwnerSettingsPage />}
-      {role === 'TEACHER' && <TeacherHomePage />}
+    <MainShell
+      activePage={route.kind === 'owner' ? route.page : 'dashboard'}
+      onNavigate={(page) => navigate(ownerPaths[page])}
+      onRoleNavigate={(nextRole) => navigate(defaultPathByRole[nextRole])}
+      pageTitleOverride={
+        route.kind === 'teacher' ? '강사 홈' : route.kind === 'admin' ? '관리자' : undefined
+      }
+    >
+      {route.kind === 'admin' && <AdminHomePage />}
+      {route.kind === 'owner' && route.page === 'dashboard' && <OwnerDashboardPage />}
+      {route.kind === 'owner' && route.page === 'schedule' && <OwnerSchedulePage />}
+      {route.kind === 'owner' && route.page === 'students' && <OwnerStudentsPage />}
+      {route.kind === 'owner' && route.page === 'notices' && <OwnerNoticesPage />}
+      {route.kind === 'owner' && route.page === 'settings' && <OwnerSettingsPage />}
+      {route.kind === 'teacher' && <TeacherHomePage />}
     </MainShell>
   );
 }

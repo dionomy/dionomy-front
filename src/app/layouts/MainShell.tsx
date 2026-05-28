@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { RoleSwitcher } from '../../features/auth/ui/RoleSwitcher';
+import type { UserRole } from '../../features/auth/model/authTypes';
 
-type OwnerPage = 'dashboard' | 'schedule' | 'students' | 'notices' | 'settings';
+export type OwnerPage = 'dashboard' | 'schedule' | 'students' | 'notices' | 'settings';
 
 const mainNavigation = [
   { key: 'dashboard', label: '대시보드', icon: '⌂' },
@@ -20,12 +21,16 @@ export function MainShell({
   activePage = 'dashboard',
   children,
   onNavigate,
+  onRoleNavigate,
+  pageTitleOverride,
 }: {
   activePage?: OwnerPage;
   children: ReactNode;
   onNavigate?: (page: OwnerPage) => void;
+  onRoleNavigate?: (role: UserRole) => void;
+  pageTitleOverride?: string;
 }) {
-  const pageTitle =
+  const defaultPageTitle =
     activePage === 'settings'
       ? '설정'
       : activePage === 'schedule'
@@ -34,7 +39,8 @@ export function MainShell({
           ? '학생'
           : activePage === 'notices'
             ? '공지'
-          : '대시보드';
+            : '대시보드';
+  const pageTitle = pageTitleOverride ?? defaultPageTitle;
   const searchPlaceholder =
     activePage === 'settings'
       ? '수업명, 강사, 학생 검색'
@@ -56,7 +62,7 @@ export function MainShell({
             <span>숭실 코딩학원</span>
           </div>
         </div>
-        <RoleSwitcher />
+        <RoleSwitcher onRoleChange={onRoleNavigate} />
         <nav className="nav-list">
           <p className="nav-section">MAIN</p>
           {mainNavigation.map((item) => (

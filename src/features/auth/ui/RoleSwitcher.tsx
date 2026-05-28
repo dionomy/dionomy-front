@@ -8,7 +8,7 @@ const roles: Array<{ label: string; value: UserRole }> = [
   { label: '관리자', value: 'DIONOMY_ADMIN' },
 ];
 
-export function RoleSwitcher() {
+export function RoleSwitcher({ onRoleChange }: { onRoleChange?: (role: UserRole) => void }) {
   const session = useAuthStore((state) => state.session);
   const switchRole = useAuthStore((state) => state.switchRole);
 
@@ -18,7 +18,10 @@ export function RoleSwitcher() {
         <button
           className={session.user.role === role.value ? 'role-chip active' : 'role-chip'}
           key={role.value}
-          onClick={() => switchRole(role.value)}
+          onClick={() => {
+            switchRole(role.value);
+            onRoleChange?.(role.value);
+          }}
           type="button"
         >
           {role.label}
