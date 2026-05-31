@@ -1,5 +1,5 @@
 import { EmptyState, ErrorState, LoadingState } from '../../../shared/ui/AsyncState';
-import { useRiskStudents } from '../../crm/api/crmApi';
+import { useRefreshRetentionSignals, useRiskStudents } from '../../crm/api/crmApi';
 
 const attendance = [
   { day: '월', total: '41명', present: 76, absent: 8, late: 2 },
@@ -13,6 +13,7 @@ const attendance = [
 
 export function TodoCards() {
   const riskStudentsQuery = useRiskStudents();
+  const refreshRetentionSignals = useRefreshRetentionSignals();
 
   return (
     <div className="dashboard-side-stack">
@@ -52,8 +53,16 @@ export function TodoCards() {
         <div className="panel-heading">
           <div>
             <h2>위험 수강생</h2>
-            <p>룰 기반 이탈 신호</p>
+            <p>저장된 룰 기반 이탈 신호</p>
           </div>
+          <button
+            className="secondary-button compact"
+            type="button"
+            disabled={refreshRetentionSignals.isPending}
+            onClick={() => refreshRetentionSignals.mutate()}
+          >
+            {refreshRetentionSignals.isPending ? '갱신 중' : '신호 갱신'}
+          </button>
         </div>
         <div className="risk-list">
           {riskStudentsQuery.isPending && <LoadingState message="위험 신호를 불러오는 중입니다." />}

@@ -28,6 +28,12 @@ export function listRiskStudents() {
   return apiRequest<RiskStudent[]>('/api/crm/risk-students');
 }
 
+export function refreshRetentionSignals() {
+  return apiRequest<RiskStudent[]>('/api/crm/retention-signals/refresh', {
+    method: 'POST',
+  });
+}
+
 export function listCareRecords(studentId: string) {
   return apiRequest<CareRecord[]>(`/api/crm/students/${studentId}/care-records`);
 }
@@ -46,6 +52,17 @@ export function useRiskStudents() {
   return useQuery({
     queryKey: queryKeys.riskStudents,
     queryFn: listRiskStudents,
+  });
+}
+
+export function useRefreshRetentionSignals() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: refreshRetentionSignals,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.riskStudents });
+    },
   });
 }
 
