@@ -9,9 +9,11 @@ import { OwnerSettingsPage } from '../pages/owner/OwnerSettingsPage';
 import { OwnerStudentsPage } from '../pages/owner/OwnerStudentsPage';
 import { AdminHomePage } from '../pages/admin/AdminHomePage';
 import { StudentHomePage } from '../pages/academy-app/StudentHomePage';
+import { CompanyHomePage } from '../pages/company/CompanyHomePage';
 import { TeacherHomePage } from '../pages/teacher/TeacherHomePage';
 
 type AppRoute =
+  | { kind: 'company'; path: string }
   | { kind: 'owner'; page: OwnerPage; path: string }
   | { kind: 'teacher'; path: string }
   | { kind: 'student'; path: string }
@@ -35,6 +37,8 @@ const defaultPathByRole: Record<UserRole, string> = {
 function routeFromPath(pathname: string): AppRoute {
   switch (pathname) {
     case '/':
+    case '/company':
+      return { kind: 'company', path: '/company' };
     case '/owner':
     case '/owner/dashboard':
       return { kind: 'owner', page: 'dashboard', path: ownerPaths.dashboard };
@@ -58,6 +62,10 @@ function routeFromPath(pathname: string): AppRoute {
 }
 
 function roleFromRoute(route: AppRoute): UserRole {
+  if (route.kind === 'company') {
+    return 'DIONOMY_ADMIN';
+  }
+
   if (route.kind === 'teacher') {
     return 'TEACHER';
   }
@@ -109,6 +117,10 @@ export function App() {
 
   if (route.kind === 'student') {
     return <StudentHomePage />;
+  }
+
+  if (route.kind === 'company') {
+    return <CompanyHomePage />;
   }
 
   return (

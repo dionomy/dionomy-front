@@ -1766,7 +1766,20 @@ button {
   font-size: 12px;
 }
 
+.company-page {
+  min-height: 100vh;
+  background: var(--color-bg);
+  padding: 24px;
+}
+
+.company-section {
+  width: min(1120px, 100%);
+  margin: 18px auto 0;
+}
+
 .company-landing-preview {
+  width: min(1120px, 100%);
+  margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
   gap: 32px;
@@ -1782,6 +1795,7 @@ button {
   font-size: 13px;
 }
 
+.company-landing-preview h1,
 .company-landing-preview h2 {
   max-width: 640px;
   margin: 10px 0;
