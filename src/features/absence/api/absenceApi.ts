@@ -14,6 +14,7 @@ export type AbsenceRequest = {
   status: AbsenceRequestStatus;
   requestedAt: string;
   resolvedAt: string | null;
+  resolvedTargetSessionId: string | null;
 };
 
 export type CreateAbsenceRequest = {
@@ -35,9 +36,10 @@ export function createAbsenceRequest(request: CreateAbsenceRequest) {
   });
 }
 
-export function approveAbsenceRequest(requestId: string) {
-  return apiRequest<AbsenceRequest>(`/api/absence-requests/${requestId}/approve`, {
+export function approveAbsenceRequest(request: { requestId: string; targetSessionId?: string | null }) {
+  return apiRequest<AbsenceRequest>(`/api/absence-requests/${request.requestId}/approve`, {
     method: 'POST',
+    body: JSON.stringify({ targetSessionId: request.targetSessionId ?? null }),
   });
 }
 
@@ -70,8 +72,8 @@ export function useResolveAbsenceRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ requestId, action }: { requestId: string; action: 'approve' | 'reject' }) =>
-      action === 'approve' ? approveAbsenceRequest(requestId) : rejectAbsenceRequest(requestId),
+    mutationFn: ({ requestId, action, targetSessionId }: { requestId: string; action: 'approve' | 'reject'; targetSessionId?: string | null }) =>
+      action === 'approve' ? approveAbsenceRequest({ requestId, targetSessionId }) : rejectAbsenceRequest(requestId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.absenceRequests() });
     },

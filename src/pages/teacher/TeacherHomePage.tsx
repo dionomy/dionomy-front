@@ -17,6 +17,7 @@ const attendanceOptions: Array<{ label: string; value: AttendanceStatus }> = [
 export function TeacherHomePage() {
   const today = formatDateInput(new Date());
   const schedulesQuery = useSchedules(today, today);
+  const upcomingSchedulesQuery = useSchedules(today, formatDateInput(addDays(new Date(), 14)));
   const studentsQuery = useStudents();
   const teacherSessions = schedulesQuery.data?.filter((item) => item.teacherId === defaultTeacherId) ?? [];
   const session = teacherSessions[0];
@@ -34,6 +35,7 @@ export function TeacherHomePage() {
     feedback: '',
     nextAssignment: '',
   });
+  const [absenceTargetSessions, setAbsenceTargetSessions] = useState<Record<string, string>>({});
 
   const handleCreateClassNote = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -173,12 +175,35 @@ export function TeacherHomePage() {
                 <article key={item.id}>
                   <strong>{students.find((student) => student.id === item.studentId)?.name ?? '수강생'}</strong>
                   <span>{item.desiredResult === 'MAKEUP' ? '보강' : '다른 세션 이동'} · {item.reason}</span>
+                  {item.desiredResult === 'MOVE_TO_OTHER_SESSION' && (
+                    <select
+                      aria-label="이동 대상 세션"
+                      value={absenceTargetSessions[item.id] ?? ''}
+                      onChange={(event) => setAbsenceTargetSessions((value) => ({ ...value, [item.id]: event.target.value }))}
+                    >
+                      <option value="">이동 대상 선택</option>
+                      {upcomingSchedulesQuery.data
+                        ?.filter((candidate) => candidate.id !== item.sessionId && candidate.assignedStudentIds.length < candidate.maximumCapacity)
+                        .map((candidate) => (
+                          <option key={candidate.id} value={candidate.id}>
+                            {formatDateTime(candidate.startsAt)} {candidate.title}
+                          </option>
+                        ))}
+                    </select>
+                  )}
                   <div>
                     <button
                       className="primary-button compact"
                       type="button"
-                      disabled={resolveAbsenceRequest.isPending}
-                      onClick={() => resolveAbsenceRequest.mutate({ requestId: item.id, action: 'approve' })}
+                      disabled={
+                        resolveAbsenceRequest.isPending ||
+                        (item.desiredResult === 'MOVE_TO_OTHER_SESSION' && !absenceTargetSessions[item.id])
+                      }
+                      onClick={() => resolveAbsenceRequest.mutate({
+                        requestId: item.id,
+                        action: 'approve',
+                        targetSessionId: absenceTargetSessions[item.id] ?? null,
+                      })}
                     >
                       승인
                     </button>
@@ -224,6 +249,23 @@ function formatTime(value: string) {
     minute: '2-digit',
     hour12: false,
   }).format(new Date(value));
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function addDays(value: Date, days: number) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+
+  return date;
 }
 
 function formatDateInput(value: Date) {
