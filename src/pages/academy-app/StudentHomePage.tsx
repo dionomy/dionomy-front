@@ -3,9 +3,11 @@ import type { FormEvent } from 'react';
 import { useAbsenceRequests, useCreateAbsenceRequest, type AbsenceDesiredResult } from '../../features/absence/api/absenceApi';
 import { useClassNotes } from '../../features/class-note/api/classNoteApi';
 import { useNotices } from '../../features/notice/api/noticeApi';
-import { useStudentPasses } from '../../features/pass/api/passApi';
+import { usePassUsageLogs, useStudentPasses } from '../../features/pass/api/passApi';
 import { useSchedules } from '../../features/schedule/api/scheduleApi';
 import { useStudents } from '../../features/student/api/studentApi';
+
+type StudentAppTab = 'home' | 'schedule' | 'pass' | 'notes' | 'profile';
 
 export function StudentHomePage() {
   const today = new Date();
@@ -16,24 +18,28 @@ export function StudentHomePage() {
   const nextSession = assignedSessions[0];
   const studentPassesQuery = useStudentPasses(student?.id);
   const activePass = studentPassesQuery.data?.[0];
+  const passUsageLogsQuery = usePassUsageLogs(activePass?.id);
   const classNotesQuery = useClassNotes();
   const noticesQuery = useNotices();
   const absenceRequestsQuery = useAbsenceRequests(student?.id);
   const createAbsenceRequest = useCreateAbsenceRequest(student?.id);
+  const [activeTab, setActiveTab] = useState<StudentAppTab>('home');
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [desiredResult, setDesiredResult] = useState<AbsenceDesiredResult>('MAKEUP');
+  const selectedSession = assignedSessions.find((session) => session.id === selectedSessionId) ?? nextSession;
 
   const handleAbsenceRequest = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!student || !nextSession) {
+    if (!student || !selectedSession) {
       return;
     }
 
     createAbsenceRequest.mutate(
       {
         studentId: student.id,
-        sessionId: nextSession.id,
+        sessionId: selectedSession.id,
         reason,
         desiredResult,
       },
@@ -60,112 +66,178 @@ export function StudentHomePage() {
         </div>
       </header>
       <main className="mobile-content">
-        <article className="mobile-hero">
-          <p>다음 수업</p>
-          <div>
-            <strong>{nextSession ? formatTime(nextSession.startsAt) : '--:--'}</strong>
-            <span>{nextSession ? '예정' : '없음'}</span>
-            <em>{nextSession?.title ?? '배정된 수업 없음'}</em>
-          </div>
-          <p>{nextSession ? `${nextSession.type === 'GROUP' ? '그룹' : '1:1'} · ${nextSession.currentCapacity}/${nextSession.maximumCapacity}명` : '원장이 수업을 배정하면 표시됩니다.'}</p>
-        </article>
-        <div className="quick-actions">
-          {[
-            ['□', '내 일정', 'brand'],
-            ['!', '결석 신청', 'warning'],
-            ['▭', '수강권', 'success'],
-            ['✎', '노트', 'danger'],
-          ].map(([icon, label, tone]) => (
-            <button key={label} type="button">
-              <span className={tone}>{icon}</span>
-              {label}
-            </button>
-          ))}
-        </div>
-        <article className="mobile-card today-classes">
-          <header>
-            <div>
-              <h1>내 일정</h1>
-              <p>배정된 수업과 결석 신청 상태</p>
-            </div>
-            <button aria-label="전체 보기" type="button">›</button>
-          </header>
-          {assignedSessions.map((session, index) => (
-            <div className="mobile-class-row" key={session.id}>
-              <strong>{formatShortDate(session.startsAt)}</strong>
-              <i className={index === 0 ? 'live' : undefined} />
-              <span>{formatTime(session.startsAt)} {session.title}</span>
-              <em className={index === 0 ? 'live' : undefined}>{index === 0 ? '예정' : '대기'}</em>
-            </div>
-          ))}
-        </article>
-        <form className="mobile-card absence-request-form" onSubmit={handleAbsenceRequest}>
-          <h2>결석 신청</h2>
-          <input
-            required
-            placeholder="사유"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            disabled={!student || !nextSession}
-          />
-          <select value={desiredResult} onChange={(event) => setDesiredResult(event.target.value as AbsenceDesiredResult)}>
-            <option value="MAKEUP">보강</option>
-            <option value="MOVE_TO_OTHER_SESSION">다른 세션 이동</option>
-          </select>
-          <button type="submit" disabled={!student || !nextSession || createAbsenceRequest.isPending}>
-            {createAbsenceRequest.isPending ? '신청 중' : '신청'}
-          </button>
-        </form>
-        <section className="mobile-alerts">
-          <h2>확인할 것</h2>
-          <article className="mobile-card alert-row">
-            <span className="success">▭</span>
-            <div>
-              <strong>{activePass ? `잔여 ${activePass.remainingCount}회` : '수강권 미발급'}</strong>
-              <p>{activePass ? `${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
-            </div>
-            <button aria-label="상세 보기" type="button">›</button>
-          </article>
-          {absenceRequestsQuery.data?.map((request) => (
-            <article className="mobile-card alert-row" key={request.id}>
-              <span className="danger">!</span>
+        {activeTab === 'home' && (
+          <>
+            <article className="mobile-hero">
+              <p>다음 수업</p>
               <div>
-                <strong>결석 신청 {formatAbsenceStatus(request.status)}</strong>
-                <p>{request.desiredResult === 'MAKEUP' ? '보강' : '다른 세션 이동'} · {request.reason}</p>
+                <strong>{nextSession ? formatTime(nextSession.startsAt) : '--:--'}</strong>
+                <span>{nextSession ? '예정' : '없음'}</span>
+                <em>{nextSession?.title ?? '배정된 수업 없음'}</em>
               </div>
-              <button aria-label="상세 보기" type="button">›</button>
+              <p>{nextSession ? `${nextSession.type === 'GROUP' ? '그룹' : '1:1'} · ${nextSession.currentCapacity}/${nextSession.maximumCapacity}명` : '원장이 수업을 배정하면 표시됩니다.'}</p>
             </article>
-          ))}
-        </section>
-        <section className="mobile-alerts">
-          <h2>클래스노트</h2>
-          {classNotesQuery.data?.slice(0, 3).map((note) => (
-            <article className="mobile-card note-preview" key={note.id}>
-              <strong>{formatDate(note.createdAt)}</strong>
-              <p>{note.feedback}</p>
-              <span>다음 과제: {note.nextAssignment || '없음'}</span>
+            <div className="quick-actions">
+              {[
+                ['□', '내 일정', 'brand', 'schedule'],
+                ['!', '결석 신청', 'warning', 'schedule'],
+                ['▭', '수강권', 'success', 'pass'],
+                ['✎', '노트', 'danger', 'notes'],
+              ].map(([icon, label, tone, tab]) => (
+                <button key={label} type="button" onClick={() => setActiveTab(tab as StudentAppTab)}>
+                  <span className={tone}>{icon}</span>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <section className="mobile-alerts">
+              <h2>확인할 것</h2>
+              <article className="mobile-card alert-row">
+                <span className="success">▭</span>
+                <div>
+                  <strong>{activePass ? `잔여 ${activePass.remainingCount}회` : '수강권 미발급'}</strong>
+                  <p>{activePass ? `${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
+                </div>
+                <button aria-label="상세 보기" type="button" onClick={() => setActiveTab('pass')}>›</button>
+              </article>
+              {absenceRequestsQuery.data?.slice(0, 2).map((request) => (
+                <article className="mobile-card alert-row" key={request.id}>
+                  <span className="danger">!</span>
+                  <div>
+                    <strong>결석 신청 {formatAbsenceStatus(request.status)}</strong>
+                    <p>{request.desiredResult === 'MAKEUP' ? '보강' : '다른 세션 이동'} · {request.reason}</p>
+                  </div>
+                  <button aria-label="상세 보기" type="button" onClick={() => setActiveTab('schedule')}>›</button>
+                </article>
+              ))}
+            </section>
+            <section className="mobile-alerts">
+              <h2>공지사항</h2>
+              {noticesQuery.data?.slice(0, 3).map((notice) => (
+                <article className="mobile-card note-preview" key={notice.id}>
+                  <strong>{notice.title}</strong>
+                  <p>{notice.body}</p>
+                  <span>{formatDate(notice.createdAt)}</span>
+                </article>
+              ))}
+            </section>
+          </>
+        )}
+
+        {activeTab === 'schedule' && (
+          <>
+            <article className="mobile-card today-classes">
+              <header>
+                <div>
+                  <h1>내 일정</h1>
+                  <p>배정된 수업과 결석 신청 상태</p>
+                </div>
+              </header>
+              {assignedSessions.map((session, index) => (
+                <button
+                  className="mobile-class-row"
+                  key={session.id}
+                  type="button"
+                  onClick={() => setSelectedSessionId(session.id)}
+                >
+                  <strong>{formatShortDate(session.startsAt)}</strong>
+                  <i className={selectedSession?.id === session.id || (!selectedSessionId && index === 0) ? 'live' : undefined} />
+                  <span>{formatTime(session.startsAt)} {session.title}</span>
+                  <em className={index === 0 ? 'live' : undefined}>{index === 0 ? '예정' : '대기'}</em>
+                </button>
+              ))}
             </article>
-          ))}
-        </section>
-        <section className="mobile-alerts">
-          <h2>공지사항</h2>
-          {noticesQuery.data?.slice(0, 3).map((notice) => (
-            <article className="mobile-card note-preview" key={notice.id}>
-              <strong>{notice.title}</strong>
-              <p>{notice.body}</p>
-              <span>{formatDate(notice.createdAt)}</span>
+            {selectedSession && (
+              <article className="mobile-card note-preview">
+                <strong>{selectedSession.title}</strong>
+                <p>{formatDate(selectedSession.startsAt)} {formatTime(selectedSession.startsAt)} - {formatTime(selectedSession.endsAt)}</p>
+                <span>{selectedSession.type === 'GROUP' ? '그룹' : '1:1'} · {selectedSession.currentCapacity}/{selectedSession.maximumCapacity}명</span>
+              </article>
+            )}
+            <form className="mobile-card absence-request-form" onSubmit={handleAbsenceRequest}>
+              <h2>결석 신청</h2>
+              <input
+                required
+                placeholder="사유"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                disabled={!student || !selectedSession}
+              />
+              <select value={desiredResult} onChange={(event) => setDesiredResult(event.target.value as AbsenceDesiredResult)}>
+                <option value="MAKEUP">보강</option>
+                <option value="MOVE_TO_OTHER_SESSION">다른 세션 이동</option>
+              </select>
+              <button type="submit" disabled={!student || !selectedSession || createAbsenceRequest.isPending}>
+                {createAbsenceRequest.isPending ? '신청 중' : '신청'}
+              </button>
+            </form>
+            <section className="mobile-alerts">
+              <h2>신청 상태</h2>
+              {absenceRequestsQuery.data?.map((request) => (
+                <article className="mobile-card alert-row" key={request.id}>
+                  <span className="danger">!</span>
+                  <div>
+                    <strong>결석 신청 {formatAbsenceStatus(request.status)}</strong>
+                    <p>{request.desiredResult === 'MAKEUP' ? '보강' : '다른 세션 이동'} · {request.reason}</p>
+                  </div>
+                </article>
+              ))}
+            </section>
+          </>
+        )}
+
+        {activeTab === 'pass' && (
+          <section className="mobile-alerts">
+            <h2>내 수강권</h2>
+            <article className="mobile-card alert-row">
+              <span className="success">▭</span>
+              <div>
+                <strong>{activePass ? `잔여 ${activePass.remainingCount}/${activePass.totalCount}회` : '수강권 미발급'}</strong>
+                <p>{activePass ? `${formatDate(activePass.issuedOn)} 발급 · ${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
+              </div>
             </article>
-          ))}
-        </section>
+            {passUsageLogsQuery.data?.map((log) => (
+              <article className="mobile-card note-preview" key={log.id}>
+                <strong>{log.type === 'CONSUME' ? '차감' : '복구'} {log.count}회</strong>
+                <p>{log.reason}</p>
+                <span>{formatDate(log.createdAt)}</span>
+              </article>
+            ))}
+          </section>
+        )}
+
+        {activeTab === 'notes' && (
+          <section className="mobile-alerts">
+            <h2>클래스노트</h2>
+            {classNotesQuery.data?.map((note) => (
+              <article className="mobile-card note-preview" key={note.id}>
+                <strong>{formatDate(note.createdAt)}</strong>
+                <p>{note.feedback}</p>
+                <span>다음 과제: {note.nextAssignment || '없음'}</span>
+              </article>
+            ))}
+          </section>
+        )}
+
+        {activeTab === 'profile' && (
+          <section className="mobile-alerts">
+            <h2>내 정보</h2>
+            <article className="mobile-card note-preview">
+              <strong>{student?.name ?? '수강생'}</strong>
+              <p>{student?.phone ?? '연락처 미등록'}</p>
+              <span>{student?.tags.join(', ') || '태그 없음'}</span>
+            </article>
+          </section>
+        )}
       </main>
       <nav className="bottom-tabs">
         {[
-          ['⌂', '홈'],
-          ['□', '일정'],
-          ['▣', '수강권'],
-          ['♙', '내 정보'],
-        ].map(([icon, label], index) => (
-          <button className={index === 0 ? 'active' : undefined} key={label} type="button">
+          ['⌂', '홈', 'home'],
+          ['□', '일정', 'schedule'],
+          ['▣', '수강권', 'pass'],
+          ['♙', '내 정보', 'profile'],
+        ].map(([icon, label, tab]) => (
+          <button className={activeTab === tab ? 'active' : undefined} key={label} type="button" onClick={() => setActiveTab(tab as StudentAppTab)}>
             <span>{icon}</span>
             {label}
           </button>
