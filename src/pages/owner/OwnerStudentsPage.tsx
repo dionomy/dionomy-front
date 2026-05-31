@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
-import { useRegisterStudent, useStudents } from '../../features/student/api/studentApi';
+import { useRegisterStudent, useStudentOperationSummary, useStudents } from '../../features/student/api/studentApi';
 import {
   useCreatePassProduct,
   useIssueStudentPass,
@@ -15,12 +15,32 @@ import { useCareRecords, useCreateCareRecord, useRiskStudents, type CareRecordSt
 
 export function OwnerStudentsPage() {
   const studentsQuery = useStudents();
+  const studentOperationSummaryQuery = useStudentOperationSummary();
   const registerStudent = useRegisterStudent();
   const passProductsQuery = usePassProducts();
   const createPassProduct = useCreatePassProduct();
   const issueStudentPass = useIssueStudentPass();
   const students = studentsQuery.data ?? [];
-  const selectedStudent = students[0];
+  const studentPassSummaryById = useMemo(
+    () => new Map(studentOperationSummaryQuery.data?.students.map((summary) => [summary.studentId, summary]) ?? []),
+    [studentOperationSummaryQuery.data],
+  );
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTag, setSelectedTag] = useState('all');
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const allTags = useMemo(
+    () => Array.from(new Set(students.flatMap((student) => student.tags))).sort((left, right) => left.localeCompare(right)),
+    [students],
+  );
+  const filteredStudents = students.filter((student) => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const searchMatched = !normalizedSearch || `${student.name} ${student.phone} ${student.memo ?? ''} ${student.tags.join(' ')}`.toLowerCase().includes(normalizedSearch);
+    const tagMatched = selectedTag === 'all' || student.tags.includes(selectedTag);
+
+    return searchMatched && tagMatched;
+  });
+  const selectedStudent = filteredStudents.find((student) => student.id === selectedStudentId) ?? filteredStudents[0] ?? students[0];
+  const selectedPassSummary = selectedStudent ? studentPassSummaryById.get(selectedStudent.id) : undefined;
   const studentPassesQuery = useStudentPasses(selectedStudent?.id);
   const activeStudentPass = studentPassesQuery.data?.[0];
   const usageLogsQuery = usePassUsageLogs(activeStudentPass?.id);
@@ -254,18 +274,18 @@ export function OwnerStudentsPage() {
       <div className="student-summary-grid">
         <article className="metric-card">
           <span>등록 수강생</span>
-          <strong>{students.length}</strong>
+          <strong>{studentOperationSummaryQuery.data?.totalStudents ?? students.length}</strong>
           <em className="trend-pill success">실시간</em>
         </article>
         <article className="metric-card">
           <span>만료 임박</span>
-          <strong>준비중</strong>
-          <em className="trend-pill warning">수강권 연동 예정</em>
+          <strong>{studentOperationSummaryQuery.data?.passExpiringSoonCount ?? 0}명</strong>
+          <em className="trend-pill warning">7일 이내</em>
         </article>
         <article className="metric-card">
           <span>회차 소진 임박</span>
-          <strong>준비중</strong>
-          <em className="trend-pill danger">수강권 연동 예정</em>
+          <strong>{studentOperationSummaryQuery.data?.passLowRemainingCount ?? 0}명</strong>
+          <em className="trend-pill danger">1-2회 잔여</em>
         </article>
       </div>
 
@@ -274,16 +294,41 @@ export function OwnerStudentsPage() {
           <div className="panel-heading">
             <div>
               <h2>수강생 목록</h2>
-              <p>검색과 태그 필터 대상</p>
+              <p>검색과 태그 필터</p>
             </div>
-            <button type="button">전체 보기</button>
+            <button type="button" onClick={() => {
+              setSearchTerm('');
+              setSelectedTag('all');
+            }}>전체 보기</button>
+          </div>
+          <div className="pass-usage-actions">
+            <input
+              aria-label="수강생 검색"
+              placeholder="이름, 연락처, 태그 검색"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+            <select aria-label="태그 필터" value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}>
+              <option value="all">전체 태그</option>
+              {allTags.map((tag) => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
           </div>
           <div className="student-table">
             {studentsQuery.isPending && <LoadingState message="수강생을 불러오는 중입니다." />}
             {studentsQuery.isError && <ErrorState message="수강생을 불러오지 못했습니다." />}
             {studentsQuery.isSuccess && students.length === 0 && <EmptyState message="등록된 수강생이 없습니다." />}
-            {students.map((student) => (
-              <article className="student-row-card" key={student.id}>
+            {studentsQuery.isSuccess && students.length > 0 && filteredStudents.length === 0 && <EmptyState message="조건에 맞는 수강생이 없습니다." />}
+            {filteredStudents.map((student) => {
+              const passSummary = studentPassSummaryById.get(student.id);
+
+              return (
+              <article
+                className={selectedStudent?.id === student.id ? 'student-row-card active' : 'student-row-card'}
+                key={student.id}
+                onClick={() => setSelectedStudentId(student.id)}
+              >
                 <div>
                   <strong>{student.name}</strong>
                   <span>{student.phone}</span>
@@ -294,12 +339,13 @@ export function OwnerStudentsPage() {
                   ))}
                 </div>
                 <div>
-                  <strong>수강권 미발급</strong>
-                  <span>{formatDate(student.createdAt)} 등록</span>
+                  <strong>{passSummary?.remainingCount != null ? `잔여 ${passSummary.remainingCount}/${passSummary.totalCount}회` : '수강권 미발급'}</strong>
+                  <span>{passSummary?.expiresOn ? `${formatDate(passSummary.expiresOn)} 만료` : `${formatDate(student.createdAt)} 등록`}</span>
                 </div>
-                <span className="status-pill">정상</span>
+                <span className="status-pill">{passSummary?.expiringSoon ? '만료 임박' : passSummary?.lowRemaining ? '소진 임박' : '정상'}</span>
               </article>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -327,7 +373,7 @@ export function OwnerStudentsPage() {
                 </div>
                 <div>
                   <dt>최근 수업</dt>
-                  <dd>일정 배정 API 연동 예정</dd>
+                  <dd>{selectedPassSummary?.activePassId ? '수강권 기준 운영 상태 확인 중' : '수강권 미발급'}</dd>
                 </div>
                 <div>
                   <dt>메모</dt>

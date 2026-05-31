@@ -19,8 +19,29 @@ export type RegisterStudentRequest = {
   tags: string[];
 };
 
+export type StudentPassSummary = {
+  studentId: string;
+  activePassId: string | null;
+  remainingCount: number | null;
+  totalCount: number | null;
+  expiresOn: string | null;
+  expiringSoon: boolean;
+  lowRemaining: boolean;
+};
+
+export type StudentOperationSummary = {
+  totalStudents: number;
+  passExpiringSoonCount: number;
+  passLowRemainingCount: number;
+  students: StudentPassSummary[];
+};
+
 export function listStudents() {
   return apiRequest<Student[]>('/api/students');
+}
+
+export function getStudentOperationSummary() {
+  return apiRequest<StudentOperationSummary>('/api/students/operation-summary');
 }
 
 export function registerStudent(request: RegisterStudentRequest) {
@@ -34,6 +55,13 @@ export function useStudents() {
   return useQuery({
     queryKey: queryKeys.students,
     queryFn: listStudents,
+  });
+}
+
+export function useStudentOperationSummary() {
+  return useQuery({
+    queryKey: queryKeys.studentOperationSummary,
+    queryFn: getStudentOperationSummary,
   });
 }
 

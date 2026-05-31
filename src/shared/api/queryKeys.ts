@@ -1,6 +1,7 @@
 export const queryKeys = {
   academySettings: ['academy-settings'] as const,
   students: ['students'] as const,
+  studentOperationSummary: ['student-operation-summary'] as const,
   passProducts: ['pass-products'] as const,
   studentPasses: (studentId: string | undefined) => ['student-passes', studentId] as const,
   passUsageLogs: (passId: string | undefined) => ['pass-usage-logs', passId] as const,
