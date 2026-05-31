@@ -6,10 +6,11 @@ import { useNotices } from '../../features/notice/api/noticeApi';
 import { usePassUsageLogs, useStudentPasses } from '../../features/pass/api/passApi';
 import { useSchedules } from '../../features/schedule/api/scheduleApi';
 import { useStudents } from '../../features/student/api/studentApi';
+import type { AcademyBrand } from '../../features/academy-settings/model/academyBrand';
 
 type StudentAppTab = 'home' | 'schedule' | 'pass' | 'notes' | 'profile';
 
-export function StudentHomePage() {
+export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
   const today = new Date();
   const schedulesQuery = useSchedules(formatDateInput(today), formatDateInput(addDays(today, 6)));
   const studentsQuery = useStudents();
@@ -50,15 +51,15 @@ export function StudentHomePage() {
   };
 
   return (
-    <section className="mobile-page">
+    <section className="mobile-page" style={brand.style}>
       <div className="status-bar">
         <strong>9:41</strong>
         <span>♢ 100%</span>
       </div>
       <header className="mobile-header">
         <div className="mobile-brand">
-          <span>D</span>
-          <strong>Dionomy</strong>
+          <span>{brand.logoUrl ? <img alt="" src={brand.logoUrl} /> : brand.initials}</span>
+          <strong>{brand.name}</strong>
         </div>
         <div className="mobile-actions">
           <button aria-label="알림" type="button">♢</button>

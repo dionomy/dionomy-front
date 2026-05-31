@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MainShell, type OwnerPage } from './layouts/MainShell';
+import { useAcademyBrand } from '../features/academy-settings/api/useAcademyBrand';
 import { useAuthStore } from '../features/auth/model/authStore';
 import type { UserRole } from '../features/auth/model/authTypes';
 import { OwnerDashboardPage } from '../pages/owner/OwnerDashboardPage';
@@ -85,6 +86,7 @@ export function App() {
   const role = useAuthStore((state) => state.session.user.role);
   const switchRole = useAuthStore((state) => state.switchRole);
   const [route, setRoute] = useState<AppRoute>(() => routeFromPath(window.location.pathname));
+  const { brand } = useAcademyBrand();
 
   function navigate(path: string, replace = false) {
     const nextRoute = routeFromPath(path);
@@ -116,7 +118,7 @@ export function App() {
   }, [role, route, switchRole]);
 
   if (route.kind === 'student') {
-    return <StudentHomePage />;
+    return <StudentHomePage brand={brand} />;
   }
 
   if (route.kind === 'company') {
@@ -128,6 +130,7 @@ export function App() {
       activePage={route.kind === 'owner' ? route.page : 'dashboard'}
       onNavigate={(page) => navigate(ownerPaths[page])}
       onRoleNavigate={(nextRole) => navigate(defaultPathByRole[nextRole])}
+      brand={route.kind === 'admin' ? undefined : brand}
       pageTitleOverride={
         route.kind === 'teacher' ? '강사 홈' : route.kind === 'admin' ? '관리자' : undefined
       }

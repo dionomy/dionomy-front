@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ErrorState, LoadingState } from '../../../shared/ui/AsyncState';
 import { useAcademySettings, useUpdateAcademySettings } from '../api/settingsApi';
+import { createAcademyBrand } from '../model/academyBrand';
 import type { AcademySettings } from '../model/settingsTypes';
 
 const fallbackSettings: AcademySettings = {
@@ -21,6 +22,7 @@ export function AcademySettingsForm() {
   const settingsQuery = useAcademySettings();
   const updateSettings = useUpdateAcademySettings();
   const [settings, setSettings] = useState<AcademySettings>(fallbackSettings);
+  const previewBrand = createAcademyBrand(settings);
 
   useEffect(() => {
     if (settingsQuery.data) {
@@ -42,7 +44,7 @@ export function AcademySettingsForm() {
   }
 
   return (
-    <form className="settings-layout" onSubmit={handleSubmit}>
+    <form className="settings-layout" onSubmit={handleSubmit} style={previewBrand.style}>
       <aside className="settings-nav">
         {['학원 정보', '알림', '결제', '브랜드', '계정 · 권한', '보안', '통합'].map((item, index) => (
           <button className={index === 0 ? 'settings-nav-item active' : 'settings-nav-item'} key={item} type="button">
@@ -58,12 +60,19 @@ export function AcademySettingsForm() {
             <p>대시보드와 영수증에 표시되는 기본 정보입니다.</p>
           </header>
           <div className="logo-row">
-            <div className="settings-logo">D</div>
+            <div className="settings-logo">
+              {previewBrand.logoUrl ? <img alt="" src={previewBrand.logoUrl} /> : previewBrand.initials}
+            </div>
             <div>
               <strong>로고</strong>
-              <p>PNG · SVG 권장 · 최대 2MB</p>
-              <button type="button">업로드</button>
-              <button className="text-danger" type="button">삭제</button>
+              <p>이미지 URL을 저장하면 운영 웹과 수강생 앱에 반영됩니다.</p>
+              <input
+                aria-label="로고 URL"
+                placeholder="https://..."
+                value={settings.logoUrl ?? ''}
+                onChange={(event) => setSettings({ ...settings, logoUrl: event.target.value || null })}
+              />
+              <button className="text-danger" type="button" onClick={() => setSettings({ ...settings, logoUrl: null })}>삭제</button>
             </div>
           </div>
           <div className="form-grid">
@@ -112,10 +121,10 @@ export function AcademySettingsForm() {
         <article className="panel settings-card">
           <header className="brand-card-heading">
             <div>
-              <h2>브랜드 <em>PRO 플랜</em></h2>
-              <p>학원 브랜드 컬러로 화이트라벨 적용</p>
+              <h2>브랜드 <em>화이트라벨</em></h2>
+              <p>저장한 색상은 운영 웹과 수강생 앱의 주요 액션 색상으로 적용됩니다.</p>
             </div>
-            <button type="button">● 미리보기</button>
+            <button className="brand-preview-button" type="button" style={{ backgroundColor: settings.mainColor }}>● 미리보기</button>
           </header>
           <div className="color-swatches">
             {[

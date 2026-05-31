@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { RoleSwitcher } from '../../features/auth/ui/RoleSwitcher';
 import type { UserRole } from '../../features/auth/model/authTypes';
+import type { AcademyBrand } from '../../features/academy-settings/model/academyBrand';
 
 export type OwnerPage = 'dashboard' | 'schedule' | 'students' | 'notices' | 'settings';
 
@@ -23,12 +24,14 @@ export function MainShell({
   onNavigate,
   onRoleNavigate,
   pageTitleOverride,
+  brand,
 }: {
   activePage?: OwnerPage;
   children: ReactNode;
   onNavigate?: (page: OwnerPage) => void;
   onRoleNavigate?: (role: UserRole) => void;
   pageTitleOverride?: string;
+  brand?: AcademyBrand;
 }) {
   const defaultPageTitle =
     activePage === 'settings'
@@ -53,13 +56,15 @@ export function MainShell({
           : '학생, 강사, 클래스 검색';
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={brand?.style}>
       <aside className="sidebar">
         <div className="brand-lockup">
-          <div className="brand-mark">D</div>
+          <div className="brand-mark">
+            {brand?.logoUrl ? <img alt="" src={brand.logoUrl} /> : (brand?.initials ?? 'D')}
+          </div>
           <div>
-            <strong>Dionomy</strong>
-            <span>숭실 코딩학원</span>
+            <strong>{brand?.name ?? 'Dionomy'}</strong>
+            <span>화이트라벨 운영 앱</span>
           </div>
         </div>
         <RoleSwitcher onRoleChange={onRoleNavigate} />
