@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState';
+import { useInstructors, usePlaces } from '../../features/operation/api/operationApi';
 import {
   useAssignStudentsToSchedule,
   useCancelSchedule,
@@ -14,22 +15,8 @@ import { useStudents } from '../../features/student/api/studentApi';
 
 type ScheduleTone = 'brand' | 'success' | 'warning' | 'danger';
 
-const days = [
-  { day: '월', date: 25 },
-  { day: '화', date: 26 },
-  { day: '수', date: 27, active: true },
-  { day: '목', date: 28 },
-  { day: '금', date: 29 },
-  { day: '토', date: 30, muted: true },
-  { day: '일', date: 31, muted: true },
-];
-
 const timeSlots = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
-const weekRange = {
-  from: '2026-05-25',
-  to: '2026-05-31',
-};
-const defaultTeacherId = '00000000-0000-0000-0000-000000000101';
+const defaultLessonStartHour = 18;
 
 type ScheduleEvent = {
   id: string;
@@ -47,29 +34,57 @@ type ScheduleEvent = {
 };
 
 export function OwnerSchedulePage() {
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
+  const [selectedTeacherId, setSelectedTeacherId] = useState('all');
+  const [selectedPlaceId, setSelectedPlaceId] = useState('all');
+  const weekRange = useMemo(
+    () => ({
+      from: formatDateInput(weekStart),
+      to: formatDateInput(addDays(weekStart, 6)),
+    }),
+    [weekStart],
+  );
+  const days = useMemo(() => buildWeekDays(weekStart), [weekStart]);
   const schedulesQuery = useSchedules(weekRange.from, weekRange.to);
   const createSchedule = useCreateSchedule(weekRange.from, weekRange.to);
   const assignStudents = useAssignStudentsToSchedule(weekRange.from, weekRange.to);
   const moveSchedule = useMoveSchedule(weekRange.from, weekRange.to);
   const cancelSchedule = useCancelSchedule(weekRange.from, weekRange.to);
   const studentsQuery = useStudents();
-  const sessions = schedulesQuery.data?.map(toScheduleEvent) ?? [];
+  const instructorsQuery = useInstructors();
+  const placesQuery = usePlaces();
+  const filteredSchedules = (schedulesQuery.data ?? []).filter((session) => {
+    const teacherMatched = selectedTeacherId === 'all' || session.teacherId === selectedTeacherId;
+    const placeMatched = selectedPlaceId === 'all' || session.placeId === selectedPlaceId;
+
+    return teacherMatched && placeMatched;
+  });
+  const sessions = filteredSchedules.map(toScheduleEvent);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const selectedSession = schedulesQuery.data?.find((session) => session.id === selectedSessionId) ?? schedulesQuery.data?.[0];
+  const selectedSession = filteredSchedules.find((session) => session.id === selectedSessionId) ?? filteredSchedules[0];
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
     title: '',
     type: 'GROUP' as ClassType,
-    startsAt: '2026-05-28T18:00',
-    endsAt: '2026-05-28T19:00',
+    teacherId: '',
+    placeId: '',
+    startsAt: toDatetimeLocal(setHour(addDays(weekStart, 3), defaultLessonStartHour)),
+    endsAt: toDatetimeLocal(setHour(addDays(weekStart, 3), defaultLessonStartHour + 1)),
     maximumCapacity: 8,
     repeatsWeekly: false,
-    recurrenceUntil: '2026-06-30',
+    recurrenceUntil: formatDateInput(addDays(weekStart, 35)),
   });
   const [moveForm, setMoveForm] = useState({
-    startsAt: '2026-05-28T18:00',
-    endsAt: '2026-05-28T19:00',
+    startsAt: toDatetimeLocal(setHour(addDays(weekStart, 3), defaultLessonStartHour)),
+    endsAt: toDatetimeLocal(setHour(addDays(weekStart, 3), defaultLessonStartHour + 1)),
   });
+
+  useEffect(() => {
+    if (!scheduleForm.teacherId && instructorsQuery.data?.[0]) {
+      setScheduleForm((value) => ({ ...value, teacherId: instructorsQuery.data[0].id }));
+    }
+  }, [instructorsQuery.data, scheduleForm.teacherId]);
 
   const handleCreateSchedule = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,8 +92,8 @@ export function OwnerSchedulePage() {
       {
         title: scheduleForm.title,
         type: scheduleForm.type,
-        teacherId: defaultTeacherId,
-        placeId: null,
+        teacherId: scheduleForm.teacherId,
+        placeId: scheduleForm.placeId || null,
         startsAt: scheduleForm.startsAt,
         endsAt: scheduleForm.endsAt,
         currentCapacity: 0,
@@ -97,11 +112,13 @@ export function OwnerSchedulePage() {
           setScheduleForm({
             title: '',
             type: 'GROUP',
-            startsAt: '2026-05-28T18:00',
-            endsAt: '2026-05-28T19:00',
+            teacherId: scheduleForm.teacherId,
+            placeId: scheduleForm.placeId,
+            startsAt: toDatetimeLocal(setHour(addDays(weekStart, 3), defaultLessonStartHour)),
+            endsAt: toDatetimeLocal(setHour(addDays(weekStart, 3), defaultLessonStartHour + 1)),
             maximumCapacity: 8,
             repeatsWeekly: false,
-            recurrenceUntil: '2026-06-30',
+            recurrenceUntil: formatDateInput(addDays(weekStart, 35)),
           });
           setIsCreateOpen(false);
         },
@@ -143,21 +160,32 @@ export function OwnerSchedulePage() {
       <header className="schedule-toolbar">
         <div className="schedule-title">
           <div>
-            <h2>2026년 5월 25일 - 31일</h2>
-            <p>이번 주</p>
+              <h2>{formatKoreanDate(weekStart)} - {formatKoreanDate(addDays(weekStart, 6))}</h2>
+              <p>{viewMode === 'month' ? '월간' : viewMode === 'day' ? '일간' : '주간'}</p>
+            </div>
+            <div className="calendar-nav">
+            <button aria-label="이전 주" type="button" onClick={() => setWeekStart((value) => addDays(value, -7))}>‹</button>
+            <button aria-label="다음 주" type="button" onClick={() => setWeekStart((value) => addDays(value, 7))}>›</button>
+            </div>
           </div>
-          <div className="calendar-nav">
-            <button aria-label="이전 주" type="button">‹</button>
-            <button aria-label="다음 주" type="button">›</button>
+          <div className="schedule-actions">
+            <div className="segmented-control" aria-label="보기 방식">
+            <button className={viewMode === 'day' ? 'active' : undefined} type="button" onClick={() => setViewMode('day')}>일간</button>
+            <button className={viewMode === 'week' ? 'active' : undefined} type="button" onClick={() => setViewMode('week')}>주간</button>
+            <button className={viewMode === 'month' ? 'active' : undefined} type="button" onClick={() => setViewMode('month')}>월간</button>
           </div>
-        </div>
-        <div className="schedule-actions">
-          <div className="segmented-control" aria-label="보기 방식">
-            <button type="button">일간</button>
-            <button className="active" type="button">주간</button>
-            <button type="button">월간</button>
-          </div>
-          <button className="secondary-button" type="button">▽ 필터</button>
+          <select aria-label="강사 필터" value={selectedTeacherId} onChange={(event) => setSelectedTeacherId(event.target.value)}>
+            <option value="all">전체 강사</option>
+            {instructorsQuery.data?.map((instructor) => (
+              <option key={instructor.id} value={instructor.id}>{instructor.name}</option>
+            ))}
+          </select>
+          <select aria-label="장소 필터" value={selectedPlaceId} onChange={(event) => setSelectedPlaceId(event.target.value)}>
+            <option value="all">전체 장소</option>
+            {placesQuery.data?.map((place) => (
+              <option key={place.id} value={place.id}>{place.name}</option>
+            ))}
+          </select>
           <button className="primary-button compact" type="button" onClick={() => setIsCreateOpen((value) => !value)}>
             ＋ 수업 추가
           </button>
@@ -186,6 +214,31 @@ export function OwnerSchedulePage() {
               <select value={scheduleForm.type} onChange={(event) => setScheduleForm({ ...scheduleForm, type: event.target.value as ClassType })}>
                 <option value="GROUP">그룹</option>
                 <option value="ONE_ON_ONE">1:1</option>
+              </select>
+            </label>
+            <label>
+              강사 <b>*</b>
+              <select
+                required
+                value={scheduleForm.teacherId}
+                onChange={(event) => setScheduleForm({ ...scheduleForm, teacherId: event.target.value })}
+              >
+                <option value="">선택</option>
+                {instructorsQuery.data?.map((instructor) => (
+                  <option key={instructor.id} value={instructor.id}>{instructor.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              장소
+              <select
+                value={scheduleForm.placeId}
+                onChange={(event) => setScheduleForm({ ...scheduleForm, placeId: event.target.value })}
+              >
+                <option value="">미지정</option>
+                {placesQuery.data?.map((place) => (
+                  <option key={place.id} value={place.id}>{place.name}</option>
+                ))}
               </select>
             </label>
             <label>
@@ -410,8 +463,18 @@ function formatHour(hour: number) {
   return `${whole.toString().padStart(2, '0')}:${minutes}`;
 }
 
-function toDatetimeLocal(value: string) {
-  return value.slice(0, 16);
+function toDatetimeLocal(value: string | Date) {
+  if (typeof value === 'string') {
+    return value.slice(0, 16);
+  }
+
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  const hour = `${value.getHours()}`.padStart(2, '0');
+  const minute = `${value.getMinutes()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 function toDayOfWeek(value: string) {
@@ -421,4 +484,60 @@ function toDayOfWeek(value: string) {
 
 function formatTimeRangeFromIso(startsAt: string, endsAt: string) {
   return `${toDatetimeLocal(startsAt).replace('T', ' ')} - ${toDatetimeLocal(endsAt).split('T')[1]}`;
+}
+
+function startOfWeek(value: Date) {
+  const date = new Date(value);
+  const day = date.getDay() === 0 ? 7 : date.getDay();
+
+  date.setDate(date.getDate() - day + 1);
+  date.setHours(0, 0, 0, 0);
+
+  return date;
+}
+
+function addDays(value: Date, days: number) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+
+  return date;
+}
+
+function setHour(value: Date, hour: number) {
+  const date = new Date(value);
+  date.setHours(hour, 0, 0, 0);
+
+  return date;
+}
+
+function formatDateInput(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatKoreanDate(value: Date) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(value);
+}
+
+function buildWeekDays(weekStart: Date) {
+  const today = formatDateInput(new Date());
+  const weekDayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+
+  return weekDayLabels.map((day, index) => {
+    const date = addDays(weekStart, index);
+
+    return {
+      day,
+      date: date.getDate(),
+      active: formatDateInput(date) === today,
+      muted: index >= 5,
+    };
+  });
 }
