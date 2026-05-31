@@ -7,6 +7,7 @@ export const queryKeys = {
   passUsageLogs: (passId: string | undefined) => ['pass-usage-logs', passId] as const,
   schedules: (from: string, to: string) => ['schedules', from, to] as const,
   instructors: ['instructors'] as const,
+  instructorAvailabilities: (instructorId?: string) => ['instructor-availabilities', instructorId ?? 'all'] as const,
   places: ['places'] as const,
   attendance: (sessionId: string | undefined) => ['attendance', sessionId] as const,
   absenceRequests: (studentId?: string) => ['absence-requests', studentId ?? 'all'] as const,

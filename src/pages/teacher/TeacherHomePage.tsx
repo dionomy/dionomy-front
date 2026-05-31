@@ -4,6 +4,7 @@ import { ErrorState, EmptyState, LoadingState } from '../../shared/ui/AsyncState
 import { useAbsenceRequests, useResolveAbsenceRequest } from '../../features/absence/api/absenceApi';
 import { useAttendance, useRecordAttendance, type AttendanceStatus } from '../../features/attendance/api/attendanceApi';
 import { useClassNotes, useCreateClassNote } from '../../features/class-note/api/classNoteApi';
+import { useCreateInstructorAvailability, useInstructorAvailabilities } from '../../features/operation/api/operationApi';
 import { useSchedules } from '../../features/schedule/api/scheduleApi';
 import { useStudents } from '../../features/student/api/studentApi';
 
@@ -25,17 +26,33 @@ export function TeacherHomePage() {
   const recordAttendance = useRecordAttendance();
   const classNotesQuery = useClassNotes(session?.id);
   const createClassNote = useCreateClassNote(session?.id);
+  const availabilitiesQuery = useInstructorAvailabilities(defaultTeacherId);
+  const createAvailability = useCreateInstructorAvailability(defaultTeacherId);
   const absenceRequestsQuery = useAbsenceRequests();
   const resolveAbsenceRequest = useResolveAbsenceRequest();
   const students = (studentsQuery.data ?? []).filter((student) => session?.assignedStudentIds.includes(student.id));
+  const allStudents = studentsQuery.data ?? [];
   const attendanceByStudent = new Map(attendanceQuery.data?.map((record) => [record.studentId, record.status]));
   const pendingAbsenceRequests = absenceRequestsQuery.data?.filter((request) => request.status === 'PENDING') ?? [];
+  const availabilities = availabilitiesQuery.data ?? [];
+  const moveTargetSessions = upcomingSchedulesQuery.data
+    ?.filter((candidate) => (
+      candidate.teacherId === defaultTeacherId &&
+      candidate.assignedStudentIds.length < candidate.maximumCapacity &&
+      availabilities.some((availability) => coversRange(availability.startsAt, availability.endsAt, candidate.startsAt, candidate.endsAt))
+    )) ?? [];
   const [noteForm, setNoteForm] = useState({
     progress: '',
     feedback: '',
     nextAssignment: '',
   });
+  const [availabilityForm, setAvailabilityForm] = useState({
+    startsAt: `${today}T18:00`,
+    endsAt: `${today}T19:00`,
+    memo: '',
+  });
   const [absenceTargetSessions, setAbsenceTargetSessions] = useState<Record<string, string>>({});
+  const [absenceTargetAvailabilities, setAbsenceTargetAvailabilities] = useState<Record<string, string>>({});
 
   const handleCreateClassNote = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -54,6 +71,25 @@ export function TeacherHomePage() {
       },
       {
         onSuccess: () => setNoteForm({ progress: '', feedback: '', nextAssignment: '' }),
+      },
+    );
+  };
+
+  const handleCreateAvailability = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    createAvailability.mutate(
+      {
+        instructorId: defaultTeacherId,
+        startsAt: availabilityForm.startsAt,
+        endsAt: availabilityForm.endsAt,
+        memo: availabilityForm.memo || null,
+      },
+      {
+        onSuccess: () => setAvailabilityForm({
+          startsAt: `${today}T18:00`,
+          endsAt: `${today}T19:00`,
+          memo: '',
+        }),
       },
     );
   };
@@ -164,7 +200,7 @@ export function TeacherHomePage() {
             <div className="panel-heading">
               <div>
                 <h2>결석 신청 승인 큐</h2>
-                <p>수강생 요청 결과까지 확인</p>
+                <p>가능 시간대 기준으로 이동/보강 승인</p>
               </div>
             </div>
             <div className="absence-queue">
@@ -173,7 +209,7 @@ export function TeacherHomePage() {
               {absenceRequestsQuery.isSuccess && pendingAbsenceRequests.length === 0 && <EmptyState message="승인 대기 중인 결석 신청이 없습니다." />}
               {pendingAbsenceRequests.map((item) => (
                 <article key={item.id}>
-                  <strong>{students.find((student) => student.id === item.studentId)?.name ?? '수강생'}</strong>
+                  <strong>{allStudents.find((student) => student.id === item.studentId)?.name ?? '수강생'}</strong>
                   <span>{item.desiredResult === 'MAKEUP' ? '보강' : '다른 세션 이동'} · {item.reason}</span>
                   {item.desiredResult === 'MOVE_TO_OTHER_SESSION' && (
                     <select
@@ -182,13 +218,27 @@ export function TeacherHomePage() {
                       onChange={(event) => setAbsenceTargetSessions((value) => ({ ...value, [item.id]: event.target.value }))}
                     >
                       <option value="">이동 대상 선택</option>
-                      {upcomingSchedulesQuery.data
-                        ?.filter((candidate) => candidate.id !== item.sessionId && candidate.assignedStudentIds.length < candidate.maximumCapacity)
+                      {moveTargetSessions
+                        .filter((candidate) => candidate.id !== item.sessionId)
                         .map((candidate) => (
                           <option key={candidate.id} value={candidate.id}>
                             {formatDateTime(candidate.startsAt)} {candidate.title}
                           </option>
                         ))}
+                    </select>
+                  )}
+                  {item.desiredResult === 'MAKEUP' && (
+                    <select
+                      aria-label="보강 가능 시간"
+                      value={absenceTargetAvailabilities[item.id] ?? ''}
+                      onChange={(event) => setAbsenceTargetAvailabilities((value) => ({ ...value, [item.id]: event.target.value }))}
+                    >
+                      <option value="">보강 시간 선택</option>
+                      {availabilities.map((availability) => (
+                        <option key={availability.id} value={availability.id}>
+                          {formatDateTime(availability.startsAt)} - {formatTime(availability.endsAt)}
+                        </option>
+                      ))}
                     </select>
                   )}
                   <div>
@@ -197,12 +247,14 @@ export function TeacherHomePage() {
                       type="button"
                       disabled={
                         resolveAbsenceRequest.isPending ||
-                        (item.desiredResult === 'MOVE_TO_OTHER_SESSION' && !absenceTargetSessions[item.id])
+                        (item.desiredResult === 'MOVE_TO_OTHER_SESSION' && !absenceTargetSessions[item.id]) ||
+                        (item.desiredResult === 'MAKEUP' && !absenceTargetAvailabilities[item.id])
                       }
                       onClick={() => resolveAbsenceRequest.mutate({
                         requestId: item.id,
                         action: 'approve',
                         targetSessionId: absenceTargetSessions[item.id] ?? null,
+                        targetAvailabilityId: absenceTargetAvailabilities[item.id] ?? null,
                       })}
                     >
                       승인
@@ -216,6 +268,47 @@ export function TeacherHomePage() {
                       거절
                     </button>
                   </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-heading">
+              <div>
+                <h2>가능 시간대</h2>
+                <p>보강과 세션 이동 승인 후보</p>
+              </div>
+            </div>
+            <form className="availability-form" onSubmit={handleCreateAvailability}>
+              <input
+                aria-label="시작 시간"
+                type="datetime-local"
+                value={availabilityForm.startsAt}
+                onChange={(event) => setAvailabilityForm({ ...availabilityForm, startsAt: event.target.value })}
+              />
+              <input
+                aria-label="종료 시간"
+                type="datetime-local"
+                value={availabilityForm.endsAt}
+                onChange={(event) => setAvailabilityForm({ ...availabilityForm, endsAt: event.target.value })}
+              />
+              <input
+                placeholder="메모"
+                value={availabilityForm.memo}
+                onChange={(event) => setAvailabilityForm({ ...availabilityForm, memo: event.target.value })}
+              />
+              <button className="primary-button compact" type="submit" disabled={createAvailability.isPending}>
+                {createAvailability.isPending ? '등록 중' : '등록'}
+              </button>
+            </form>
+            <div className="availability-list">
+              {availabilitiesQuery.isPending && <LoadingState message="가능 시간대를 불러오는 중입니다." />}
+              {availabilitiesQuery.isSuccess && availabilities.length === 0 && <EmptyState message="등록된 가능 시간대가 없습니다." />}
+              {availabilities.slice(0, 5).map((availability) => (
+                <article key={availability.id}>
+                  <strong>{formatDateTime(availability.startsAt)} - {formatTime(availability.endsAt)}</strong>
+                  <span>{availability.memo || '메모 없음'}</span>
                 </article>
               ))}
             </div>
@@ -259,6 +352,10 @@ function formatDateTime(value: string) {
     minute: '2-digit',
     hour12: false,
   }).format(new Date(value));
+}
+
+function coversRange(availableStartsAt: string, availableEndsAt: string, targetStartsAt: string, targetEndsAt: string) {
+  return new Date(availableStartsAt) <= new Date(targetStartsAt) && new Date(availableEndsAt) >= new Date(targetEndsAt);
 }
 
 function addDays(value: Date, days: number) {

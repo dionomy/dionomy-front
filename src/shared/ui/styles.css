@@ -1561,6 +1561,7 @@ button {
 .teacher-side,
 .attendance-check-list,
 .absence-queue,
+.availability-list,
 .teacher-student-list {
   display: grid;
   gap: 10px;
@@ -1568,6 +1569,7 @@ button {
 
 .attendance-check-list,
 .absence-queue,
+.availability-list,
 .teacher-student-list {
   margin-top: 18px;
 }
@@ -1635,6 +1637,16 @@ button {
   gap: 6px;
 }
 
+.absence-queue select {
+  width: 100%;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
 .class-note-box {
   display: grid;
   gap: 6px;
@@ -1654,14 +1666,16 @@ button {
   font-size: 12px;
 }
 
-.class-note-form {
+.class-note-form,
+.availability-form {
   display: grid;
   gap: 8px;
   margin-top: 14px;
 }
 
 .class-note-form input,
-.class-note-form textarea {
+.class-note-form textarea,
+.availability-form input {
   width: 100%;
   border: 1px solid var(--color-border-subtle);
   border-radius: 8px;
@@ -1674,6 +1688,28 @@ button {
 .class-note-form textarea {
   min-height: 84px;
   resize: vertical;
+}
+
+.availability-list article {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.availability-list strong,
+.availability-list span {
+  display: block;
+}
+
+.availability-list strong {
+  font-size: 12px;
+}
+
+.availability-list span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
 .class-note-box article {

@@ -15,6 +15,7 @@ export type AbsenceRequest = {
   requestedAt: string;
   resolvedAt: string | null;
   resolvedTargetSessionId: string | null;
+  resolvedTargetAvailabilityId: string | null;
 };
 
 export type CreateAbsenceRequest = {
@@ -36,10 +37,13 @@ export function createAbsenceRequest(request: CreateAbsenceRequest) {
   });
 }
 
-export function approveAbsenceRequest(request: { requestId: string; targetSessionId?: string | null }) {
+export function approveAbsenceRequest(request: { requestId: string; targetSessionId?: string | null; targetAvailabilityId?: string | null }) {
   return apiRequest<AbsenceRequest>(`/api/absence-requests/${request.requestId}/approve`, {
     method: 'POST',
-    body: JSON.stringify({ targetSessionId: request.targetSessionId ?? null }),
+    body: JSON.stringify({
+      targetSessionId: request.targetSessionId ?? null,
+      targetAvailabilityId: request.targetAvailabilityId ?? null,
+    }),
   });
 }
 
@@ -72,8 +76,8 @@ export function useResolveAbsenceRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ requestId, action, targetSessionId }: { requestId: string; action: 'approve' | 'reject'; targetSessionId?: string | null }) =>
-      action === 'approve' ? approveAbsenceRequest({ requestId, targetSessionId }) : rejectAbsenceRequest(requestId),
+    mutationFn: ({ requestId, action, targetSessionId, targetAvailabilityId }: { requestId: string; action: 'approve' | 'reject'; targetSessionId?: string | null; targetAvailabilityId?: string | null }) =>
+      action === 'approve' ? approveAbsenceRequest({ requestId, targetSessionId, targetAvailabilityId }) : rejectAbsenceRequest(requestId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.absenceRequests() });
     },
