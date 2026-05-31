@@ -7,13 +7,13 @@ import { useStudentPasses } from '../../features/pass/api/passApi';
 import { useSchedules } from '../../features/schedule/api/scheduleApi';
 import { useStudents } from '../../features/student/api/studentApi';
 
-const today = '2026-05-28';
-
 export function StudentHomePage() {
-  const schedulesQuery = useSchedules(today, '2026-06-03');
+  const today = new Date();
+  const schedulesQuery = useSchedules(formatDateInput(today), formatDateInput(addDays(today, 6)));
   const studentsQuery = useStudents();
   const student = studentsQuery.data?.[0];
-  const nextSession = schedulesQuery.data?.[0];
+  const assignedSessions = (schedulesQuery.data ?? []).filter((session) => !student || session.assignedStudentIds.includes(student.id));
+  const nextSession = assignedSessions[0];
   const studentPassesQuery = useStudentPasses(student?.id);
   const activePass = studentPassesQuery.data?.[0];
   const classNotesQuery = useClassNotes();
@@ -90,7 +90,7 @@ export function StudentHomePage() {
             </div>
             <button aria-label="전체 보기" type="button">›</button>
           </header>
-          {schedulesQuery.data?.map((session, index) => (
+          {assignedSessions.map((session, index) => (
             <div className="mobile-class-row" key={session.id}>
               <strong>{formatShortDate(session.startsAt)}</strong>
               <i className={index === 0 ? 'live' : undefined} />
@@ -200,4 +200,19 @@ function formatAbsenceStatus(status: string) {
   if (status === 'APPROVED') return '승인';
   if (status === 'REJECTED') return '거절';
   return '승인 대기';
+}
+
+function addDays(value: Date, days: number) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+
+  return date;
+}
+
+function formatDateInput(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }

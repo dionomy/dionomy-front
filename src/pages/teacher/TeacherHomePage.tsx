@@ -7,7 +7,6 @@ import { useClassNotes, useCreateClassNote } from '../../features/class-note/api
 import { useSchedules } from '../../features/schedule/api/scheduleApi';
 import { useStudents } from '../../features/student/api/studentApi';
 
-const today = '2026-05-28';
 const defaultTeacherId = '00000000-0000-0000-0000-000000000101';
 const attendanceOptions: Array<{ label: string; value: AttendanceStatus }> = [
   { label: '참석', value: 'PRESENT' },
@@ -16,16 +15,18 @@ const attendanceOptions: Array<{ label: string; value: AttendanceStatus }> = [
 ];
 
 export function TeacherHomePage() {
+  const today = formatDateInput(new Date());
   const schedulesQuery = useSchedules(today, today);
   const studentsQuery = useStudents();
-  const session = schedulesQuery.data?.[0];
+  const teacherSessions = schedulesQuery.data?.filter((item) => item.teacherId === defaultTeacherId) ?? [];
+  const session = teacherSessions[0];
   const attendanceQuery = useAttendance(session?.id);
   const recordAttendance = useRecordAttendance();
   const classNotesQuery = useClassNotes(session?.id);
   const createClassNote = useCreateClassNote(session?.id);
   const absenceRequestsQuery = useAbsenceRequests();
   const resolveAbsenceRequest = useResolveAbsenceRequest();
-  const students = studentsQuery.data ?? [];
+  const students = (studentsQuery.data ?? []).filter((student) => session?.assignedStudentIds.includes(student.id));
   const attendanceByStudent = new Map(attendanceQuery.data?.map((record) => [record.studentId, record.status]));
   const pendingAbsenceRequests = absenceRequestsQuery.data?.filter((request) => request.status === 'PENDING') ?? [];
   const [noteForm, setNoteForm] = useState({
@@ -78,7 +79,7 @@ export function TeacherHomePage() {
           <div className="attendance-check-list">
             {(schedulesQuery.isPending || studentsQuery.isPending) && <LoadingState message="출석 대상을 불러오는 중입니다." />}
             {(schedulesQuery.isError || studentsQuery.isError) && <ErrorState message="출석 대상을 불러오지 못했습니다." />}
-            {session && students.length === 0 && <EmptyState message="등록된 수강생이 없습니다." />}
+              {session && students.length === 0 && <EmptyState message="이 수업에 배정된 수강생이 없습니다." />}
             {session && students.map((student) => (
               <article key={student.name}>
                 <div>
@@ -223,4 +224,12 @@ function formatTime(value: string) {
     minute: '2-digit',
     hour12: false,
   }).format(new Date(value));
+}
+
+function formatDateInput(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
