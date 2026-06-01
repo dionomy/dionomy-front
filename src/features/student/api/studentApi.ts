@@ -25,6 +25,8 @@ export type StudentPassSummary = {
   remainingCount: number | null;
   totalCount: number | null;
   expiresOn: string | null;
+  lifecycleStatus: 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'USED_UP' | null;
+  expirationReason: 'PERIOD_EXPIRED' | 'COUNT_EXHAUSTED' | 'PERIOD_EXPIRING_SOON' | 'COUNT_LOW' | null;
   expiringSoon: boolean;
   lowRemaining: boolean;
 };

@@ -4,6 +4,7 @@ import { useAbsenceRequests, useCreateAbsenceRequest, type AbsenceDesiredResult 
 import { useClassNotes } from '../../features/class-note/api/classNoteApi';
 import { useNotices } from '../../features/notice/api/noticeApi';
 import { usePassUsageLogs, useStudentPasses } from '../../features/pass/api/passApi';
+import { getPassLifecycleDisplay, selectPrimaryPass } from '../../features/pass/model/passLifecycle';
 import { useSchedules } from '../../features/schedule/api/scheduleApi';
 import { useStudents } from '../../features/student/api/studentApi';
 import type { AcademyBrand } from '../../features/academy-settings/model/academyBrand';
@@ -18,7 +19,8 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
   const assignedSessions = (schedulesQuery.data ?? []).filter((session) => !student || session.assignedStudentIds.includes(student.id));
   const nextSession = assignedSessions[0];
   const studentPassesQuery = useStudentPasses(student?.id);
-  const activePass = studentPassesQuery.data?.[0];
+  const activePass = selectPrimaryPass(studentPassesQuery.data);
+  const activePassDisplay = getPassLifecycleDisplay(activePass?.lifecycleStatus, activePass?.expirationReason);
   const passUsageLogsQuery = usePassUsageLogs(activePass?.id);
   const classNotesQuery = useClassNotes();
   const noticesQuery = useNotices();
@@ -97,7 +99,7 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
                 <span className="success">▭</span>
                 <div>
                   <strong>{activePass ? `잔여 ${activePass.remainingCount}회` : '수강권 미발급'}</strong>
-                  <p>{activePass ? `${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
+                  <p>{activePass ? `${activePassDisplay.label} · ${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
                 </div>
                 <button aria-label="상세 보기" type="button" onClick={() => setActiveTab('pass')}>›</button>
               </article>
@@ -194,7 +196,7 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
               <span className="success">▭</span>
               <div>
                 <strong>{activePass ? `잔여 ${activePass.remainingCount}/${activePass.totalCount}회` : '수강권 미발급'}</strong>
-                <p>{activePass ? `${formatDate(activePass.issuedOn)} 발급 · ${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
+                <p>{activePass ? `${activePassDisplay.label} · ${activePassDisplay.reasonLabel} · ${formatDate(activePass.issuedOn)} 발급 · ${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
               </div>
             </article>
             {passUsageLogsQuery.data?.map((log) => (

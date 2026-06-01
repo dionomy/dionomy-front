@@ -23,8 +23,12 @@ export type StudentPass = {
   issuedOn: string;
   expiresOn: string;
   expired: boolean;
+  lifecycleStatus: PassLifecycleStatus;
+  expirationReason: PassExpirationReason | null;
 };
 
+export type PassLifecycleStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'USED_UP';
+export type PassExpirationReason = 'PERIOD_EXPIRED' | 'COUNT_EXHAUSTED' | 'PERIOD_EXPIRING_SOON' | 'COUNT_LOW';
 export type PassUsageType = 'CONSUME' | 'RESTORE';
 
 export type PassUsageLog = {

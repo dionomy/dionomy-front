@@ -11,6 +11,7 @@ import {
   useStudentPasses,
   type PassUsageType,
 } from '../../features/pass/api/passApi';
+import { getPassLifecycleDisplay, selectPrimaryPass } from '../../features/pass/model/passLifecycle';
 import { useCareRecords, useCreateCareRecord, useRiskStudents, type CareRecordStatus } from '../../features/crm/api/crmApi';
 
 export function OwnerStudentsPage() {
@@ -42,7 +43,8 @@ export function OwnerStudentsPage() {
   const selectedStudent = filteredStudents.find((student) => student.id === selectedStudentId) ?? filteredStudents[0] ?? students[0];
   const selectedPassSummary = selectedStudent ? studentPassSummaryById.get(selectedStudent.id) : undefined;
   const studentPassesQuery = useStudentPasses(selectedStudent?.id);
-  const activeStudentPass = studentPassesQuery.data?.[0];
+  const activeStudentPass = selectPrimaryPass(studentPassesQuery.data);
+  const activePassDisplay = getPassLifecycleDisplay(activeStudentPass?.lifecycleStatus, activeStudentPass?.expirationReason);
   const usageLogsQuery = usePassUsageLogs(activeStudentPass?.id);
   const recordPassUsage = useRecordPassUsage(selectedStudent?.id, activeStudentPass?.id);
   const riskStudentsQuery = useRiskStudents();
@@ -322,6 +324,7 @@ export function OwnerStudentsPage() {
             {studentsQuery.isSuccess && students.length > 0 && filteredStudents.length === 0 && <EmptyState message="조건에 맞는 수강생이 없습니다." />}
             {filteredStudents.map((student) => {
               const passSummary = studentPassSummaryById.get(student.id);
+              const passDisplay = getPassLifecycleDisplay(passSummary?.lifecycleStatus, passSummary?.expirationReason);
 
               return (
               <article
@@ -342,7 +345,7 @@ export function OwnerStudentsPage() {
                   <strong>{passSummary?.remainingCount != null ? `잔여 ${passSummary.remainingCount}/${passSummary.totalCount}회` : '수강권 미발급'}</strong>
                   <span>{passSummary?.expiresOn ? `${formatDate(passSummary.expiresOn)} 만료` : `${formatDate(student.createdAt)} 등록`}</span>
                 </div>
-                <span className="status-pill">{passSummary?.expiringSoon ? '만료 임박' : passSummary?.lowRemaining ? '소진 임박' : '정상'}</span>
+                <span className={`status-pill ${passDisplay.tone}`}>{passDisplay.label}</span>
               </article>
               );
             })}
@@ -364,7 +367,9 @@ export function OwnerStudentsPage() {
                   <strong>{activeStudentPass ? `${activeStudentPass.remainingCount}회` : '미발급'}</strong>
                 </div>
                 <progress value={activeStudentPass?.usedCount ?? 0} max={activeStudentPass?.totalCount ?? 1} />
-                <small>{activeStudentPass ? `${formatDate(activeStudentPass.expiresOn)} 만료` : '수강권을 발급하세요'}</small>
+                <small>
+                  {activeStudentPass ? `${activePassDisplay.label} · ${activePassDisplay.reasonLabel} · ${formatDate(activeStudentPass.expiresOn)} 만료` : '수강권을 발급하세요'}
+                </small>
               </div>
               <dl className="detail-list">
                 <div>

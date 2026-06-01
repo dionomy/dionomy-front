@@ -1,4 +1,4 @@
-import { useStudents } from '../../student/api/studentApi';
+import { useStudentOperationSummary, useStudents } from '../../student/api/studentApi';
 import { useSchedules } from '../../schedule/api/scheduleApi';
 
 const weekRange = {
@@ -8,6 +8,7 @@ const weekRange = {
 
 export function DashboardSummary() {
   const studentsQuery = useStudents();
+  const studentOperationSummaryQuery = useStudentOperationSummary();
   const schedulesQuery = useSchedules(weekRange.from, weekRange.to);
 
   const items = [
@@ -24,7 +25,12 @@ export function DashboardSummary() {
       tone: 'success',
     },
     { label: '이번 달 매출', value: 'MVP 제외', trend: '결제 v2', tone: 'success' },
-    { label: '수강권 만료 임박', value: '준비중', trend: '수강권 집계 예정', tone: 'danger' },
+    {
+      label: '수강권 만료 임박',
+      value: `${studentOperationSummaryQuery.data?.passExpiringSoonCount ?? 0}명`,
+      trend: studentOperationSummaryQuery.isPending ? '불러오는 중' : '자동 집계',
+      tone: 'danger',
+    },
   ];
 
   return (

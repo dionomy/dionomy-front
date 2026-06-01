@@ -1,5 +1,6 @@
 import { EmptyState, ErrorState, LoadingState } from '../../../shared/ui/AsyncState';
 import { useRefreshRetentionSignals, useRiskStudents } from '../../crm/api/crmApi';
+import { useStudentOperationSummary } from '../../student/api/studentApi';
 
 const attendance = [
   { day: '월', total: '41명', present: 76, absent: 8, late: 2 },
@@ -13,6 +14,7 @@ const attendance = [
 
 export function TodoCards() {
   const riskStudentsQuery = useRiskStudents();
+  const studentOperationSummaryQuery = useStudentOperationSummary();
   const refreshRetentionSignals = useRefreshRetentionSignals();
 
   return (
@@ -76,6 +78,37 @@ export function TodoCards() {
           ))}
         </div>
       </article>
+      <article className="panel risk-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>수강권 To-do</h2>
+            <p>만료/소진 임박 수강생</p>
+          </div>
+        </div>
+        <div className="risk-list">
+          {studentOperationSummaryQuery.isPending && <LoadingState message="수강권 상태를 불러오는 중입니다." />}
+          {studentOperationSummaryQuery.isError && <ErrorState message="수강권 상태를 불러오지 못했습니다." />}
+          {studentOperationSummaryQuery.data?.students
+            .filter((student) => student.expiringSoon || student.lowRemaining)
+            .slice(0, 4)
+            .map((student) => (
+              <article key={student.studentId}>
+                <strong>{student.lowRemaining ? '회차 소진 임박' : '만료 임박'}</strong>
+                <span>{student.remainingCount ?? 0}/{student.totalCount ?? 0}회 · {student.expiresOn ? formatDate(student.expiresOn) : '만료일 없음'}</span>
+              </article>
+            ))}
+          {studentOperationSummaryQuery.isSuccess && studentOperationSummaryQuery.data.students.every((student) => !student.expiringSoon && !student.lowRemaining) && (
+            <EmptyState message="처리할 수강권 To-do가 없습니다." />
+          )}
+        </div>
+      </article>
     </div>
   );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value));
 }
