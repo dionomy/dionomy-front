@@ -1914,6 +1914,189 @@ button {
   align-items: start;
 }
 
+.admin-shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 248px minmax(0, 1fr);
+  background: var(--color-bg-app);
+}
+
+.admin-sidebar {
+  border-right: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  padding: 24px 18px;
+}
+
+.admin-brand {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 28px;
+}
+
+.admin-brand strong {
+  color: var(--color-text-primary);
+  font-size: 20px;
+}
+
+.admin-brand span,
+.admin-topbar p,
+.academy-link-grid span {
+  color: var(--color-text-secondary);
+}
+
+.admin-sidebar nav {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-sidebar a {
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 800;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.admin-sidebar a.active,
+.admin-sidebar a:hover {
+  background: var(--color-bg-muted);
+  color: var(--color-text-primary);
+}
+
+.admin-main {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+  padding: 28px;
+}
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.admin-topbar h1 {
+  margin: 4px 0;
+  color: var(--color-text-primary);
+  font-size: 28px;
+}
+
+.academy-link-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.academy-link-grid article {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  padding: 14px;
+}
+
+.academy-link-grid strong,
+.academy-link-grid span {
+  display: block;
+}
+
+.academy-link-grid a {
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 10px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.academy-link-grid button {
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-muted);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.admin-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.admin-settings-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-settings-grid input {
+  height: 40px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  padding: 0 10px;
+}
+
+.admin-feature-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  padding: 12px;
+  text-align: left;
+}
+
+.admin-feature-toggle span {
+  border-radius: 999px;
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 900;
+  padding: 4px 8px;
+}
+
+.admin-feature-toggle.on {
+  border-color: var(--color-solid-brand);
+}
+
+.admin-feature-toggle.on span {
+  background: var(--color-solid-brand);
+  color: var(--color-text-on-brand);
+}
+
+.admin-save-status {
+  margin: 12px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.student-app-link {
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 10px;
+  text-decoration: none;
+}
+
 .admin-side,
 .tenant-table,
 .ticket-list {
@@ -2396,7 +2579,9 @@ button {
   .teacher-layout,
   .notices-layout,
   .company-landing-preview,
+  .admin-shell,
   .admin-grid,
+  .academy-link-grid,
   .tenant-table article,
   .student-row-card,
   .usage-log-list article {

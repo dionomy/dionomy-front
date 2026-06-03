@@ -1,5 +1,5 @@
 export const queryKeys = {
-  academySettings: ['academy-settings'] as const,
+  academySettings: (tenantId?: string) => ['academy-settings', tenantId ?? 'current'] as const,
   students: ['students'] as const,
   studentOperationSummary: ['student-operation-summary'] as const,
   passProducts: ['pass-products'] as const,

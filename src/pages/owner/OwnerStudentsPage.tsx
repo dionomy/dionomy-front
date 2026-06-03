@@ -13,8 +13,10 @@ import {
 } from '../../features/pass/api/passApi';
 import { getPassLifecycleDisplay, selectPrimaryPass } from '../../features/pass/model/passLifecycle';
 import { useCareRecords, useCreateCareRecord, useRiskStudents, type CareRecordStatus } from '../../features/crm/api/crmApi';
+import { useAcademySettings } from '../../features/academy-settings/api/settingsApi';
 
 export function OwnerStudentsPage() {
+  const settingsQuery = useAcademySettings();
   const studentsQuery = useStudents();
   const studentOperationSummaryQuery = useStudentOperationSummary();
   const registerStudent = useRegisterStudent();
@@ -50,7 +52,10 @@ export function OwnerStudentsPage() {
   const riskStudentsQuery = useRiskStudents();
   const careRecordsQuery = useCareRecords(selectedStudent?.id);
   const createCareRecord = useCreateCareRecord(selectedStudent?.id);
+  const crmEnabled = settingsQuery.data?.crmEnabled !== false;
   const selectedRisk = riskStudentsQuery.data?.find((risk) => risk.studentId === selectedStudent?.id);
+  const academyPrefix = window.location.pathname.match(/^\/academy\/(\d+)(?:\/|$)/)?.[0].replace(/\/$/, '') ?? '';
+  const selectedStudentAppPath = selectedStudent ? `${academyPrefix}/student/${selectedStudent.id}` : '';
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isProductOpen, setIsProductOpen] = useState(false);
   const [studentForm, setStudentForm] = useState({
@@ -359,6 +364,7 @@ export function OwnerStudentsPage() {
                 <h2>{selectedStudent ? `${selectedStudent.name} 상세` : '수강생 상세'}</h2>
                 <p>수강권, 최근 수업, 메모</p>
               </div>
+              {selectedStudent && <a className="student-app-link" href={selectedStudentAppPath}>앱 보기</a>}
             </div>
             <div className="student-detail-stack">
               <div className="pass-progress">
@@ -372,10 +378,12 @@ export function OwnerStudentsPage() {
                 </small>
               </div>
               <dl className="detail-list">
+                {crmEnabled && (
                 <div>
                   <dt>위험 신호</dt>
                   <dd>{selectedRisk ? selectedRisk.signals.map((signal) => signal.label).join(', ') : '없음'}</dd>
                 </div>
+                )}
                 <div>
                   <dt>최근 수업</dt>
                   <dd>{selectedPassSummary?.activePassId ? '수강권 기준 운영 상태 확인 중' : '수강권 미발급'}</dd>
@@ -385,30 +393,34 @@ export function OwnerStudentsPage() {
                   <dd>{selectedStudent?.memo ?? '메모 없음'}</dd>
                 </div>
               </dl>
-              <form className="care-record-form" onSubmit={handleCreateCareRecord}>
-                <select value={careForm.status} onChange={(event) => setCareForm({ ...careForm, status: event.target.value as CareRecordStatus })}>
-                  <option value="PENDING">대기</option>
-                  <option value="CONTACTED">연락함</option>
-                  <option value="RENEWED">재등록</option>
-                  <option value="DROPPED">포기</option>
-                </select>
-                <input
-                  required
-                  placeholder="케어 기록"
-                  value={careForm.memo}
-                  onChange={(event) => setCareForm({ ...careForm, memo: event.target.value })}
-                  disabled={!selectedStudent}
-                />
-                <button type="submit" disabled={!selectedStudent || createCareRecord.isPending}>저장</button>
-              </form>
-              <div className="care-record-list">
-                {careRecordsQuery.data?.map((record) => (
-                  <article key={record.id}>
-                    <strong>{formatCareStatus(record.status)}</strong>
-                    <span>{record.memo}</span>
-                  </article>
-                ))}
-              </div>
+              {crmEnabled && (
+                <>
+                  <form className="care-record-form" onSubmit={handleCreateCareRecord}>
+                    <select value={careForm.status} onChange={(event) => setCareForm({ ...careForm, status: event.target.value as CareRecordStatus })}>
+                      <option value="PENDING">대기</option>
+                      <option value="CONTACTED">연락함</option>
+                      <option value="RENEWED">재등록</option>
+                      <option value="DROPPED">포기</option>
+                    </select>
+                    <input
+                      required
+                      placeholder="케어 기록"
+                      value={careForm.memo}
+                      onChange={(event) => setCareForm({ ...careForm, memo: event.target.value })}
+                      disabled={!selectedStudent}
+                    />
+                    <button type="submit" disabled={!selectedStudent || createCareRecord.isPending}>저장</button>
+                  </form>
+                  <div className="care-record-list">
+                    {careRecordsQuery.data?.map((record) => (
+                      <article key={record.id}>
+                        <strong>{formatCareStatus(record.status)}</strong>
+                        <span>{record.memo}</span>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </section>
 

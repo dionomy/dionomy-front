@@ -12,7 +12,11 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const tenantId = await resolveTenantId();
+  const tenantId = init.headers instanceof Headers
+    ? init.headers.get('X-Tenant-Id') ?? await resolveTenantId()
+    : typeof init.headers === 'object' && init.headers !== null && 'X-Tenant-Id' in init.headers
+      ? String(init.headers['X-Tenant-Id' as keyof typeof init.headers])
+      : await resolveTenantId();
   const response = await fetch(path, {
     ...init,
     headers: {

@@ -5,7 +5,6 @@ const roles: Array<{ label: string; value: UserRole }> = [
   { label: '원장', value: 'OWNER' },
   { label: '강사', value: 'TEACHER' },
   { label: '수강생', value: 'STUDENT' },
-  { label: '관리자', value: 'DIONOMY_ADMIN' },
 ];
 
 export function RoleSwitcher({ onRoleChange }: { onRoleChange?: (role: UserRole) => void }) {
