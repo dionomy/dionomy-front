@@ -9,4 +9,12 @@ export type AcademySettings = {
   makeupEnabled: boolean;
   makeupExpiresInDays: number;
   makeupMaxCount: number;
+  ownerScheduleEnabled: boolean;
+  ownerStudentsEnabled: boolean;
+  ownerNoticesEnabled: boolean;
+  teacherModeEnabled: boolean;
+  studentPassEnabled: boolean;
+  studentClassNotesEnabled: boolean;
+  studentAbsenceRequestEnabled: boolean;
+  crmEnabled: boolean;
 };

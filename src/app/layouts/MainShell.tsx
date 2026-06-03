@@ -2,21 +2,22 @@ import type { ReactNode } from 'react';
 import { RoleSwitcher } from '../../features/auth/ui/RoleSwitcher';
 import type { UserRole } from '../../features/auth/model/authTypes';
 import type { AcademyBrand } from '../../features/academy-settings/model/academyBrand';
+import type { AcademySettings } from '../../features/academy-settings/model/settingsTypes';
 
 export type OwnerPage = 'dashboard' | 'schedule' | 'students' | 'notices' | 'settings';
 
-const mainNavigation = [
+const mainNavigation: Array<{ key: OwnerPage; label: string; icon: string; setting?: keyof AcademySettings }> = [
   { key: 'dashboard', label: '대시보드', icon: '⌂' },
-  { key: 'schedule', label: '시간표', icon: '□' },
-] as const;
+  { key: 'schedule', label: '시간표', icon: '□', setting: 'ownerScheduleEnabled' },
+];
 
-const operationNavigation = [
-  { key: 'schedule', label: '클래스', icon: '▣', count: '8' },
-  { key: 'students', label: '학생', icon: '◇', count: '142' },
+const operationNavigation: Array<{ key?: OwnerPage; label: string; icon: string; count?: string; setting?: keyof AcademySettings }> = [
+  { key: 'schedule', label: '클래스', icon: '▣', count: '8', setting: 'ownerScheduleEnabled' },
+  { key: 'students', label: '학생', icon: '◇', count: '142', setting: 'ownerStudentsEnabled' },
   { label: '강사', icon: '♧', count: '6' },
-  { key: 'notices', label: '공지', icon: '!' },
+  { key: 'notices', label: '공지', icon: '!', setting: 'ownerNoticesEnabled' },
   { label: '결제 · 수강증', icon: '▭' },
-] as const;
+];
 
 export function MainShell({
   activePage = 'dashboard',
@@ -25,6 +26,7 @@ export function MainShell({
   onRoleNavigate,
   pageTitleOverride,
   brand,
+  featureSettings,
 }: {
   activePage?: OwnerPage;
   children: ReactNode;
@@ -32,7 +34,9 @@ export function MainShell({
   onRoleNavigate?: (role: UserRole) => void;
   pageTitleOverride?: string;
   brand?: AcademyBrand;
+  featureSettings?: AcademySettings;
 }) {
+  const isEnabled = (setting?: keyof AcademySettings) => !setting || featureSettings?.[setting] !== false;
   const defaultPageTitle =
     activePage === 'settings'
       ? '설정'
@@ -70,7 +74,7 @@ export function MainShell({
         <RoleSwitcher onRoleChange={onRoleNavigate} />
         <nav className="nav-list">
           <p className="nav-section">MAIN</p>
-          {mainNavigation.map((item) => (
+          {mainNavigation.filter((item) => isEnabled(item.setting)).map((item) => (
             <button
               className={item.key === activePage ? 'nav-item active' : 'nav-item'}
               key={item.key}
@@ -82,12 +86,12 @@ export function MainShell({
             </button>
           ))}
           <p className="nav-section">OPERATION</p>
-          {operationNavigation.map((item) => (
+          {operationNavigation.filter((item) => isEnabled(item.setting)).map((item) => (
             <button
               className={'key' in item && item.key === activePage ? 'nav-item active' : 'nav-item'}
               key={item.label}
               onClick={() => {
-                if ('key' in item) {
+                if (item.key) {
                   onNavigate?.(item.key);
                 }
               }}
@@ -95,7 +99,7 @@ export function MainShell({
             >
               <span>{item.icon}</span>
               <strong>{item.label}</strong>
-              {'count' in item && <em>{item.count}</em>}
+              {item.count && <em>{item.count}</em>}
             </button>
           ))}
           <div className="nav-spacer" />

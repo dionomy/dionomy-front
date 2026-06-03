@@ -16,6 +16,14 @@ const fallbackSettings: AcademySettings = {
   makeupEnabled: true,
   makeupExpiresInDays: 30,
   makeupMaxCount: 2,
+  ownerScheduleEnabled: true,
+  ownerStudentsEnabled: true,
+  ownerNoticesEnabled: true,
+  teacherModeEnabled: true,
+  studentPassEnabled: true,
+  studentClassNotesEnabled: true,
+  studentAbsenceRequestEnabled: true,
+  crmEnabled: true,
 };
 
 export function AcademySettingsForm() {
@@ -34,6 +42,7 @@ export function AcademySettingsForm() {
     event.preventDefault();
     updateSettings.mutate(settings);
   };
+  const updateToggle = (key: keyof AcademySettings) => setSettings((value) => ({ ...value, [key]: !value[key] }));
 
   if (settingsQuery.isPending) {
     return <LoadingState message="학원 설정을 불러오는 중입니다." />;
@@ -117,6 +126,40 @@ export function AcademySettingsForm() {
               <i className={enabled ? 'switch on' : 'switch'} />
             </div>
           ))}
+        </article>
+        <article className="panel settings-card">
+          <header>
+            <h2>기능 설정</h2>
+            <p>학원별로 운영 웹, 강사 모드, 수강생 앱의 메뉴 노출을 제어합니다.</p>
+          </header>
+          {[
+            ['시간표', '원장 운영 웹의 시간표 메뉴와 수업 관리 기능', 'ownerScheduleEnabled'],
+            ['수강생 관리', '수강생 목록, 수강권, CRM 케어 영역', 'ownerStudentsEnabled'],
+            ['공지사항', '원장 공지 작성과 수강생 공지 목록', 'ownerNoticesEnabled'],
+            ['강사 모드', '강사 홈, 출석 체크, 클래스노트 작성', 'teacherModeEnabled'],
+            ['수강생 수강권', '수강생 앱의 수강권 정보와 사용 이력', 'studentPassEnabled'],
+            ['수강생 클래스노트', '수강생 앱의 클래스노트 읽기 화면', 'studentClassNotesEnabled'],
+            ['수강생 결석 신청', '수강생 앱의 결석 신청 폼과 신청 상태', 'studentAbsenceRequestEnabled'],
+            ['이탈 케어', '위험 수강생, 신호 배지, 케어 기록', 'crmEnabled'],
+          ].map(([title, body, key]) => {
+            const settingKey = key as keyof AcademySettings;
+            const enabled = Boolean(settings[settingKey]);
+
+            return (
+              <div className="toggle-row" key={key}>
+                <div>
+                  <strong>{title}</strong>
+                  <span>{body}</span>
+                </div>
+                <button
+                  aria-label={`${title} ${enabled ? '끄기' : '켜기'}`}
+                  className={enabled ? 'switch on' : 'switch'}
+                  type="button"
+                  onClick={() => updateToggle(settingKey)}
+                />
+              </div>
+            );
+          })}
         </article>
         <article className="panel settings-card">
           <header className="brand-card-heading">

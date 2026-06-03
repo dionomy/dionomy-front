@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAbsenceRequests, useCreateAbsenceRequest, type AbsenceDesiredResult } from '../../features/absence/api/absenceApi';
 import { useClassNotes } from '../../features/class-note/api/classNoteApi';
@@ -8,10 +8,11 @@ import { getPassLifecycleDisplay, selectPrimaryPass } from '../../features/pass/
 import { useSchedules } from '../../features/schedule/api/scheduleApi';
 import { useStudents } from '../../features/student/api/studentApi';
 import type { AcademyBrand } from '../../features/academy-settings/model/academyBrand';
+import type { AcademySettings } from '../../features/academy-settings/model/settingsTypes';
 
 type StudentAppTab = 'home' | 'schedule' | 'pass' | 'notes' | 'profile';
 
-export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
+export function StudentHomePage({ brand, featureSettings }: { brand: AcademyBrand; featureSettings?: AcademySettings }) {
   const today = new Date();
   const schedulesQuery = useSchedules(formatDateInput(today), formatDateInput(addDays(today, 6)));
   const studentsQuery = useStudents();
@@ -31,6 +32,22 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
   const [reason, setReason] = useState('');
   const [desiredResult, setDesiredResult] = useState<AbsenceDesiredResult>('MAKEUP');
   const selectedSession = assignedSessions.find((session) => session.id === selectedSessionId) ?? nextSession;
+  const passEnabled = featureSettings?.studentPassEnabled !== false;
+  const notesEnabled = featureSettings?.studentClassNotesEnabled !== false;
+  const absenceEnabled = featureSettings?.studentAbsenceRequestEnabled !== false;
+  const noticeEnabled = featureSettings?.ownerNoticesEnabled !== false;
+  const tabs: Array<[string, string, StudentAppTab]> = [
+    ['⌂', '홈', 'home'],
+    ['□', '일정', 'schedule'],
+    ...(passEnabled ? [['▣', '수강권', 'pass'] as [string, string, StudentAppTab]] : []),
+    ['♙', '내 정보', 'profile'],
+  ];
+
+  useEffect(() => {
+    if ((activeTab === 'pass' && !passEnabled) || (activeTab === 'notes' && !notesEnabled)) {
+      setActiveTab('home');
+    }
+  }, [activeTab, notesEnabled, passEnabled]);
 
   const handleAbsenceRequest = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -83,9 +100,9 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
             <div className="quick-actions">
               {[
                 ['□', '내 일정', 'brand', 'schedule'],
-                ['!', '결석 신청', 'warning', 'schedule'],
-                ['▭', '수강권', 'success', 'pass'],
-                ['✎', '노트', 'danger', 'notes'],
+                ...(absenceEnabled ? [['!', '결석 신청', 'warning', 'schedule']] : []),
+                ...(passEnabled ? [['▭', '수강권', 'success', 'pass']] : []),
+                ...(notesEnabled ? [['✎', '노트', 'danger', 'notes']] : []),
               ].map(([icon, label, tone, tab]) => (
                 <button key={label} type="button" onClick={() => setActiveTab(tab as StudentAppTab)}>
                   <span className={tone}>{icon}</span>
@@ -95,15 +112,17 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
             </div>
             <section className="mobile-alerts">
               <h2>확인할 것</h2>
-              <article className="mobile-card alert-row">
-                <span className="success">▭</span>
-                <div>
-                  <strong>{activePass ? `잔여 ${activePass.remainingCount}회` : '수강권 미발급'}</strong>
-                  <p>{activePass ? `${activePassDisplay.label} · ${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
-                </div>
-                <button aria-label="상세 보기" type="button" onClick={() => setActiveTab('pass')}>›</button>
-              </article>
-              {absenceRequestsQuery.data?.slice(0, 2).map((request) => (
+              {passEnabled && (
+                <article className="mobile-card alert-row">
+                  <span className="success">▭</span>
+                  <div>
+                    <strong>{activePass ? `잔여 ${activePass.remainingCount}회` : '수강권 미발급'}</strong>
+                    <p>{activePass ? `${activePassDisplay.label} · ${formatDate(activePass.expiresOn)} 만료` : '원장이 수강권을 발급하면 표시됩니다.'}</p>
+                  </div>
+                  <button aria-label="상세 보기" type="button" onClick={() => setActiveTab('pass')}>›</button>
+                </article>
+              )}
+              {absenceEnabled && absenceRequestsQuery.data?.slice(0, 2).map((request) => (
                 <article className="mobile-card alert-row" key={request.id}>
                   <span className="danger">!</span>
                   <div>
@@ -114,7 +133,7 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
                 </article>
               ))}
             </section>
-            <section className="mobile-alerts">
+            {noticeEnabled && <section className="mobile-alerts">
               <h2>공지사항</h2>
               {noticesQuery.data?.slice(0, 3).map((notice) => (
                 <article className="mobile-card note-preview" key={notice.id}>
@@ -123,7 +142,7 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
                   <span>{formatDate(notice.createdAt)}</span>
                 </article>
               ))}
-            </section>
+            </section>}
           </>
         )}
 
@@ -157,39 +176,43 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
                 <span>{selectedSession.type === 'GROUP' ? '그룹' : '1:1'} · {selectedSession.currentCapacity}/{selectedSession.maximumCapacity}명</span>
               </article>
             )}
-            <form className="mobile-card absence-request-form" onSubmit={handleAbsenceRequest}>
-              <h2>결석 신청</h2>
-              <input
-                required
-                placeholder="사유"
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                disabled={!student || !selectedSession}
-              />
-              <select value={desiredResult} onChange={(event) => setDesiredResult(event.target.value as AbsenceDesiredResult)}>
-                <option value="MAKEUP">보강</option>
-                <option value="MOVE_TO_OTHER_SESSION">다른 세션 이동</option>
-              </select>
-              <button type="submit" disabled={!student || !selectedSession || createAbsenceRequest.isPending}>
-                {createAbsenceRequest.isPending ? '신청 중' : '신청'}
-              </button>
-            </form>
-            <section className="mobile-alerts">
-              <h2>신청 상태</h2>
-              {absenceRequestsQuery.data?.map((request) => (
-                <article className="mobile-card alert-row" key={request.id}>
-                  <span className="danger">!</span>
-                  <div>
-                    <strong>결석 신청 {formatAbsenceStatus(request.status)}</strong>
-                    <p>{request.desiredResult === 'MAKEUP' ? '보강' : '다른 세션 이동'} · {request.reason}</p>
-                  </div>
-                </article>
-              ))}
-            </section>
+            {absenceEnabled && (
+              <>
+                <form className="mobile-card absence-request-form" onSubmit={handleAbsenceRequest}>
+                  <h2>결석 신청</h2>
+                  <input
+                    required
+                    placeholder="사유"
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    disabled={!student || !selectedSession}
+                  />
+                  <select value={desiredResult} onChange={(event) => setDesiredResult(event.target.value as AbsenceDesiredResult)}>
+                    <option value="MAKEUP">보강</option>
+                    <option value="MOVE_TO_OTHER_SESSION">다른 세션 이동</option>
+                  </select>
+                  <button type="submit" disabled={!student || !selectedSession || createAbsenceRequest.isPending}>
+                    {createAbsenceRequest.isPending ? '신청 중' : '신청'}
+                  </button>
+                </form>
+                <section className="mobile-alerts">
+                  <h2>신청 상태</h2>
+                  {absenceRequestsQuery.data?.map((request) => (
+                    <article className="mobile-card alert-row" key={request.id}>
+                      <span className="danger">!</span>
+                      <div>
+                        <strong>결석 신청 {formatAbsenceStatus(request.status)}</strong>
+                        <p>{request.desiredResult === 'MAKEUP' ? '보강' : '다른 세션 이동'} · {request.reason}</p>
+                      </div>
+                    </article>
+                  ))}
+                </section>
+              </>
+            )}
           </>
         )}
 
-        {activeTab === 'pass' && (
+        {activeTab === 'pass' && passEnabled && (
           <section className="mobile-alerts">
             <h2>내 수강권</h2>
             <article className="mobile-card alert-row">
@@ -209,7 +232,7 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
           </section>
         )}
 
-        {activeTab === 'notes' && (
+        {activeTab === 'notes' && notesEnabled && (
           <section className="mobile-alerts">
             <h2>클래스노트</h2>
             {classNotesQuery.data?.map((note) => (
@@ -234,12 +257,7 @@ export function StudentHomePage({ brand }: { brand: AcademyBrand }) {
         )}
       </main>
       <nav className="bottom-tabs">
-        {[
-          ['⌂', '홈', 'home'],
-          ['□', '일정', 'schedule'],
-          ['▣', '수강권', 'pass'],
-          ['♙', '내 정보', 'profile'],
-        ].map(([icon, label, tab]) => (
+        {tabs.map(([icon, label, tab]) => (
           <button className={activeTab === tab ? 'active' : undefined} key={label} type="button" onClick={() => setActiveTab(tab as StudentAppTab)}>
             <span>{icon}</span>
             {label}
