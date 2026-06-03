@@ -12,11 +12,11 @@ import type { AcademySettings } from '../../features/academy-settings/model/sett
 
 type StudentAppTab = 'home' | 'schedule' | 'pass' | 'notes' | 'profile';
 
-export function StudentHomePage({ brand, featureSettings }: { brand: AcademyBrand; featureSettings?: AcademySettings }) {
+export function StudentHomePage({ brand, featureSettings, studentId }: { brand: AcademyBrand; featureSettings?: AcademySettings; studentId?: string }) {
   const today = new Date();
   const schedulesQuery = useSchedules(formatDateInput(today), formatDateInput(addDays(today, 6)));
   const studentsQuery = useStudents();
-  const student = studentsQuery.data?.[0];
+  const student = studentsQuery.data?.find((item) => item.id === studentId) ?? studentsQuery.data?.[0];
   const assignedSessions = (schedulesQuery.data ?? []).filter((session) => !student || session.assignedStudentIds.includes(student.id));
   const nextSession = assignedSessions[0];
   const studentPassesQuery = useStudentPasses(student?.id);

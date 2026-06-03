@@ -17,7 +17,7 @@ type AppRoute =
   | { kind: 'company'; path: string }
   | { kind: 'owner'; page: OwnerPage; path: string; academyNumber?: number }
   | { kind: 'teacher'; path: string; academyNumber?: number }
-  | { kind: 'student'; path: string; academyNumber?: number }
+  | { kind: 'student'; path: string; academyNumber?: number; studentId?: string }
   | { kind: 'admin'; path: string };
 
 function ownerPath(page: OwnerPage, academyNumber?: number) {
@@ -72,14 +72,20 @@ function routeFromPath(pathname: string): AppRoute {
       return { kind: 'student', path: `${prefix}/student`, academyNumber };
     case '/admin':
       return { kind: 'admin', path: '/admin' };
-    default:
+    default: {
+      const studentMatch = appPath.match(/^\/student\/([^/]+)$/);
+      if (studentMatch) {
+        return { kind: 'student', path: `${prefix}/student/${studentMatch[1]}`, academyNumber, studentId: studentMatch[1] };
+      }
+
       return { kind: 'owner', page: 'dashboard', path: ownerPath('dashboard', academyNumber), academyNumber };
+    }
   }
 }
 
 function roleFromRoute(route: AppRoute): UserRole {
   if (route.kind === 'company') {
-    return 'DIONOMY_ADMIN';
+    return 'OWNER';
   }
 
   if (route.kind === 'teacher') {
@@ -98,11 +104,7 @@ function roleFromRoute(route: AppRoute): UserRole {
 }
 
 export function App() {
-  const role = useAuthStore((state) => state.session.user.role);
-  const switchRole = useAuthStore((state) => state.switchRole);
   const [route, setRoute] = useState<AppRoute>(() => routeFromPath(window.location.pathname));
-  const { brand, settingsQuery } = useAcademyBrand();
-  const featureSettings = settingsQuery.data;
 
   function navigate(path: string, replace = false) {
     const nextRoute = routeFromPath(path);
@@ -125,6 +127,29 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  if (route.kind === 'admin') {
+    return <AdminHomePage />;
+  }
+
+  if (route.kind === 'company') {
+    return <CompanyHomePage />;
+  }
+
+  return <AcademyAppRoute navigate={navigate} route={route} />;
+}
+
+function AcademyAppRoute({
+  navigate,
+  route,
+}: {
+  navigate: (path: string, replace?: boolean) => void;
+  route: Exclude<AppRoute, { kind: 'admin' | 'company' }>;
+}) {
+  const role = useAuthStore((state) => state.session.user.role);
+  const switchRole = useAuthStore((state) => state.switchRole);
+  const { brand, settingsQuery } = useAcademyBrand();
+  const featureSettings = settingsQuery.data;
+
   useEffect(() => {
     const routeRole = roleFromRoute(route);
 
@@ -134,11 +159,7 @@ export function App() {
   }, [role, route, switchRole]);
 
   if (route.kind === 'student') {
-    return <StudentHomePage brand={brand} featureSettings={featureSettings} />;
-  }
-
-  if (route.kind === 'company') {
-    return <CompanyHomePage />;
+    return <StudentHomePage brand={brand} featureSettings={featureSettings} studentId={route.studentId} />;
   }
 
   return (
@@ -146,13 +167,12 @@ export function App() {
       activePage={route.kind === 'owner' ? route.page : 'dashboard'}
       onNavigate={(page) => navigate(ownerPath(page, 'academyNumber' in route ? route.academyNumber : undefined))}
       onRoleNavigate={(nextRole) => navigate(defaultPathByRole(nextRole, 'academyNumber' in route ? route.academyNumber : undefined))}
-      brand={route.kind === 'admin' ? undefined : brand}
+      brand={brand}
       featureSettings={featureSettings}
       pageTitleOverride={
-        route.kind === 'teacher' && featureSettings?.teacherModeEnabled === false ? '사용 안 함' : route.kind === 'teacher' ? '강사 홈' : route.kind === 'admin' ? '관리자' : undefined
+        route.kind === 'teacher' && featureSettings?.teacherModeEnabled === false ? '사용 안 함' : route.kind === 'teacher' ? '강사 홈' : undefined
       }
     >
-      {route.kind === 'admin' && <AdminHomePage />}
       {route.kind === 'owner' && route.page === 'dashboard' && <OwnerDashboardPage />}
       {route.kind === 'owner' && route.page === 'schedule' && <OwnerSchedulePage />}
       {route.kind === 'owner' && route.page === 'students' && <OwnerStudentsPage />}
