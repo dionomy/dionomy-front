@@ -18,7 +18,8 @@ type AppRoute =
   | { kind: 'owner'; page: OwnerPage; path: string; academyNumber?: number }
   | { kind: 'teacher'; path: string; academyNumber?: number }
   | { kind: 'student'; path: string; academyNumber?: number; studentId?: string }
-  | { kind: 'admin'; path: string };
+  | { kind: 'admin'; path: string }
+  | { kind: 'not-found'; path: string };
 
 function ownerPath(page: OwnerPage, academyNumber?: number) {
   const prefix = academyNumber ? `/academy/${academyNumber}` : '';
@@ -51,13 +52,17 @@ function routeFromPath(pathname: string): AppRoute {
   const appPath = academyMatch ? academyMatch[2] || '/owner/dashboard' : pathname;
   const prefix = academyNumber ? `/academy/${academyNumber}` : '';
 
+  if (!academyMatch && !['/', '/company', '/admin'].includes(pathname)) {
+    return { kind: 'not-found', path: pathname };
+  }
+
   switch (appPath) {
     case '/':
     case '/company':
       return { kind: 'company', path: '/company' };
     case '/owner':
     case '/owner/dashboard':
-      return { kind: 'owner', page: 'dashboard', path: ownerPath('dashboard', academyNumber), academyNumber };
+      return academyMatch ? { kind: 'owner', page: 'dashboard', path: ownerPath('dashboard', academyNumber), academyNumber } : { kind: 'company', path: '/company' };
     case '/owner/schedule':
       return { kind: 'owner', page: 'schedule', path: ownerPath('schedule', academyNumber), academyNumber };
     case '/owner/students':
@@ -78,7 +83,7 @@ function routeFromPath(pathname: string): AppRoute {
         return { kind: 'student', path: `${prefix}/student/${studentMatch[1]}`, academyNumber, studentId: studentMatch[1] };
       }
 
-      return { kind: 'owner', page: 'dashboard', path: ownerPath('dashboard', academyNumber), academyNumber };
+      return { kind: 'not-found', path: pathname };
     }
   }
 }
@@ -135,6 +140,15 @@ export function App() {
     return <CompanyHomePage />;
   }
 
+  if (route.kind === 'not-found') {
+    return (
+      <UnavailableScreen
+        title="지원하지 않는 경로입니다"
+        message="학원 앱은 /academy/:academyNumber/... 형식으로 접근해야 합니다."
+      />
+    );
+  }
+
   return <AcademyAppRoute navigate={navigate} route={route} />;
 }
 
@@ -158,9 +172,27 @@ function AcademyAppRoute({
     }
   }, [role, route, switchRole]);
 
+  if (settingsQuery.isError) {
+    return (
+      <UnavailableScreen
+        title="학원을 찾을 수 없습니다"
+        message="관리자에서 학원 번호와 상태를 확인하세요."
+      />
+    );
+  }
+
   if (route.kind === 'student') {
     return <StudentHomePage brand={brand} featureSettings={featureSettings} studentId={route.studentId} />;
   }
+
+  const blockedOwnerPage =
+    route.kind === 'owner' &&
+    featureSettings &&
+    (
+      (route.page === 'schedule' && featureSettings.ownerScheduleEnabled === false) ||
+      (route.page === 'students' && featureSettings.ownerStudentsEnabled === false) ||
+      (route.page === 'notices' && featureSettings.ownerNoticesEnabled === false)
+    );
 
   return (
     <MainShell
@@ -173,11 +205,14 @@ function AcademyAppRoute({
         route.kind === 'teacher' && featureSettings?.teacherModeEnabled === false ? '사용 안 함' : route.kind === 'teacher' ? '강사 홈' : undefined
       }
     >
-      {route.kind === 'owner' && route.page === 'dashboard' && <OwnerDashboardPage />}
-      {route.kind === 'owner' && route.page === 'schedule' && <OwnerSchedulePage />}
-      {route.kind === 'owner' && route.page === 'students' && <OwnerStudentsPage />}
-      {route.kind === 'owner' && route.page === 'notices' && <OwnerNoticesPage />}
-      {route.kind === 'owner' && route.page === 'settings' && <OwnerSettingsPage />}
+      {blockedOwnerPage && (
+        <UnavailableScreen title="비활성화된 기능입니다" message="관리자 세팅에서 이 학원의 기능을 켜면 사용할 수 있습니다." />
+      )}
+      {!blockedOwnerPage && route.kind === 'owner' && route.page === 'dashboard' && <OwnerDashboardPage />}
+      {!blockedOwnerPage && route.kind === 'owner' && route.page === 'schedule' && <OwnerSchedulePage />}
+      {!blockedOwnerPage && route.kind === 'owner' && route.page === 'students' && <OwnerStudentsPage />}
+      {!blockedOwnerPage && route.kind === 'owner' && route.page === 'notices' && <OwnerNoticesPage />}
+      {!blockedOwnerPage && route.kind === 'owner' && route.page === 'settings' && <OwnerSettingsPage />}
       {route.kind === 'teacher' && featureSettings?.teacherModeEnabled === false && (
         <section className="page-stack">
           <div className="panel">
@@ -188,5 +223,16 @@ function AcademyAppRoute({
       )}
       {route.kind === 'teacher' && featureSettings?.teacherModeEnabled !== false && <TeacherHomePage />}
     </MainShell>
+  );
+}
+
+function UnavailableScreen({ title, message }: { title: string; message: string }) {
+  return (
+    <section className="page-stack">
+      <div className="panel">
+        <h2>{title}</h2>
+        <p>{message}</p>
+      </div>
+    </section>
   );
 }
