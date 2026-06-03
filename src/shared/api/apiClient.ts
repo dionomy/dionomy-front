@@ -1,4 +1,5 @@
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+const tenantIdByAcademyNumber = new Map<number, string>();
 
 export class ApiError extends Error {
   constructor(
@@ -11,11 +12,12 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const tenantId = await resolveTenantId();
   const response = await fetch(path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      'X-Tenant-Id': import.meta.env.VITE_DIONOMY_TENANT_ID ?? DEFAULT_TENANT_ID,
+      'X-Tenant-Id': tenantId,
       ...init.headers,
     },
   });
@@ -30,4 +32,38 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   }
 
   return response.json() as Promise<T>;
+}
+
+async function resolveTenantId() {
+  const envTenantId = import.meta.env.VITE_DIONOMY_TENANT_ID;
+
+  if (envTenantId) {
+    return envTenantId;
+  }
+
+  const academyNumber = getAcademyNumberFromPath();
+  if (!academyNumber) {
+    return DEFAULT_TENANT_ID;
+  }
+
+  const cachedTenantId = tenantIdByAcademyNumber.get(academyNumber);
+  if (cachedTenantId) {
+    return cachedTenantId;
+  }
+
+  const response = await fetch(`/api/tenant/by-academy-number/${academyNumber}`);
+  if (!response.ok) {
+    throw new ApiError(`학원 ${academyNumber}번을 찾을 수 없습니다.`, response.status);
+  }
+
+  const tenant = await response.json() as { id: string };
+  tenantIdByAcademyNumber.set(academyNumber, tenant.id);
+
+  return tenant.id;
+}
+
+function getAcademyNumberFromPath() {
+  const match = window.location.pathname.match(/^\/academy\/(\d+)(?:\/|$)/);
+
+  return match ? Number(match[1]) : null;
 }

@@ -15,50 +15,65 @@ import { TeacherHomePage } from '../pages/teacher/TeacherHomePage';
 
 type AppRoute =
   | { kind: 'company'; path: string }
-  | { kind: 'owner'; page: OwnerPage; path: string }
-  | { kind: 'teacher'; path: string }
-  | { kind: 'student'; path: string }
+  | { kind: 'owner'; page: OwnerPage; path: string; academyNumber?: number }
+  | { kind: 'teacher'; path: string; academyNumber?: number }
+  | { kind: 'student'; path: string; academyNumber?: number }
   | { kind: 'admin'; path: string };
 
-const ownerPaths: Record<OwnerPage, string> = {
-  dashboard: '/owner/dashboard',
-  schedule: '/owner/schedule',
-  students: '/owner/students',
-  notices: '/owner/notices',
-  settings: '/owner/settings',
-};
+function ownerPath(page: OwnerPage, academyNumber?: number) {
+  const prefix = academyNumber ? `/academy/${academyNumber}` : '';
+  const paths: Record<OwnerPage, string> = {
+    dashboard: `${prefix}/owner/dashboard`,
+    schedule: `${prefix}/owner/schedule`,
+    students: `${prefix}/owner/students`,
+    notices: `${prefix}/owner/notices`,
+    settings: `${prefix}/owner/settings`,
+  };
 
-const defaultPathByRole: Record<UserRole, string> = {
-  OWNER: ownerPaths.dashboard,
-  TEACHER: '/teacher',
-  STUDENT: '/student',
-  DIONOMY_ADMIN: '/admin',
-};
+  return paths[page];
+}
+
+function defaultPathByRole(role: UserRole, academyNumber?: number) {
+  const prefix = academyNumber ? `/academy/${academyNumber}` : '';
+  const paths: Record<UserRole, string> = {
+    OWNER: ownerPath('dashboard', academyNumber),
+    TEACHER: `${prefix}/teacher`,
+    STUDENT: `${prefix}/student`,
+    DIONOMY_ADMIN: '/admin',
+  };
+
+  return paths[role];
+}
 
 function routeFromPath(pathname: string): AppRoute {
-  switch (pathname) {
+  const academyMatch = pathname.match(/^\/academy\/(\d+)(\/.*)?$/);
+  const academyNumber = academyMatch ? Number(academyMatch[1]) : undefined;
+  const appPath = academyMatch ? academyMatch[2] || '/owner/dashboard' : pathname;
+  const prefix = academyNumber ? `/academy/${academyNumber}` : '';
+
+  switch (appPath) {
     case '/':
     case '/company':
       return { kind: 'company', path: '/company' };
     case '/owner':
     case '/owner/dashboard':
-      return { kind: 'owner', page: 'dashboard', path: ownerPaths.dashboard };
+      return { kind: 'owner', page: 'dashboard', path: ownerPath('dashboard', academyNumber), academyNumber };
     case '/owner/schedule':
-      return { kind: 'owner', page: 'schedule', path: ownerPaths.schedule };
+      return { kind: 'owner', page: 'schedule', path: ownerPath('schedule', academyNumber), academyNumber };
     case '/owner/students':
-      return { kind: 'owner', page: 'students', path: ownerPaths.students };
+      return { kind: 'owner', page: 'students', path: ownerPath('students', academyNumber), academyNumber };
     case '/owner/notices':
-      return { kind: 'owner', page: 'notices', path: ownerPaths.notices };
+      return { kind: 'owner', page: 'notices', path: ownerPath('notices', academyNumber), academyNumber };
     case '/owner/settings':
-      return { kind: 'owner', page: 'settings', path: ownerPaths.settings };
+      return { kind: 'owner', page: 'settings', path: ownerPath('settings', academyNumber), academyNumber };
     case '/teacher':
-      return { kind: 'teacher', path: '/teacher' };
+      return { kind: 'teacher', path: `${prefix}/teacher`, academyNumber };
     case '/student':
-      return { kind: 'student', path: '/student' };
+      return { kind: 'student', path: `${prefix}/student`, academyNumber };
     case '/admin':
       return { kind: 'admin', path: '/admin' };
     default:
-      return { kind: 'owner', page: 'dashboard', path: ownerPaths.dashboard };
+      return { kind: 'owner', page: 'dashboard', path: ownerPath('dashboard', academyNumber), academyNumber };
   }
 }
 
@@ -86,7 +101,8 @@ export function App() {
   const role = useAuthStore((state) => state.session.user.role);
   const switchRole = useAuthStore((state) => state.switchRole);
   const [route, setRoute] = useState<AppRoute>(() => routeFromPath(window.location.pathname));
-  const { brand } = useAcademyBrand();
+  const { brand, settingsQuery } = useAcademyBrand();
+  const featureSettings = settingsQuery.data;
 
   function navigate(path: string, replace = false) {
     const nextRoute = routeFromPath(path);
@@ -118,7 +134,7 @@ export function App() {
   }, [role, route, switchRole]);
 
   if (route.kind === 'student') {
-    return <StudentHomePage brand={brand} />;
+    return <StudentHomePage brand={brand} featureSettings={featureSettings} />;
   }
 
   if (route.kind === 'company') {
@@ -128,11 +144,12 @@ export function App() {
   return (
     <MainShell
       activePage={route.kind === 'owner' ? route.page : 'dashboard'}
-      onNavigate={(page) => navigate(ownerPaths[page])}
-      onRoleNavigate={(nextRole) => navigate(defaultPathByRole[nextRole])}
+      onNavigate={(page) => navigate(ownerPath(page, 'academyNumber' in route ? route.academyNumber : undefined))}
+      onRoleNavigate={(nextRole) => navigate(defaultPathByRole(nextRole, 'academyNumber' in route ? route.academyNumber : undefined))}
       brand={route.kind === 'admin' ? undefined : brand}
+      featureSettings={featureSettings}
       pageTitleOverride={
-        route.kind === 'teacher' ? '강사 홈' : route.kind === 'admin' ? '관리자' : undefined
+        route.kind === 'teacher' && featureSettings?.teacherModeEnabled === false ? '사용 안 함' : route.kind === 'teacher' ? '강사 홈' : route.kind === 'admin' ? '관리자' : undefined
       }
     >
       {route.kind === 'admin' && <AdminHomePage />}
@@ -141,7 +158,15 @@ export function App() {
       {route.kind === 'owner' && route.page === 'students' && <OwnerStudentsPage />}
       {route.kind === 'owner' && route.page === 'notices' && <OwnerNoticesPage />}
       {route.kind === 'owner' && route.page === 'settings' && <OwnerSettingsPage />}
-      {route.kind === 'teacher' && <TeacherHomePage />}
+      {route.kind === 'teacher' && featureSettings?.teacherModeEnabled === false && (
+        <section className="page-stack">
+          <div className="panel">
+            <h2>강사 모드가 비활성화되어 있습니다.</h2>
+            <p>학원 설정에서 강사 모드를 켜면 다시 사용할 수 있습니다.</p>
+          </div>
+        </section>
+      )}
+      {route.kind === 'teacher' && featureSettings?.teacherModeEnabled !== false && <TeacherHomePage />}
     </MainShell>
   );
 }
